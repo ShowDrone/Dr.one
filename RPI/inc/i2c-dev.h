@@ -21,9 +21,8 @@
 */
 
 /* $Id: i2c-dev.h 5894 2010-12-12 13:22:29Z khali $ */
-
-#ifndef __LIB_I2CDEV_H__
-#define __LIB_I2CDEV_H__
+#ifndef _LINUX_I2C_DEV_H
+#define _LINUX_I2C_DEV_H
 
 #include <linux/types.h>
 #include <sys/ioctl.h>
@@ -146,19 +145,19 @@ union i2c_smbus_data {
 
 /* This is the structure as used in the I2C_SMBUS ioctl call */
 
-//struct i2c_smbus_ioctl_data {
-//	char read_write;
-//	__u8 command;
-//	int size;
-//	union i2c_smbus_data *data;
-//};
+struct i2c_smbus_ioctl_data {
+	char read_write;
+	__u8 command;
+	int size;
+	union i2c_smbus_data *data;
+};
 
 /* This is the structure as used in the I2C_RDWR ioctl call */
 
-//struct i2c_rdwr_ioctl_data {
-//	struct i2c_msg *msgs;	/* pointers to i2c_msgs */
-//	int nmsgs;		/* number of i2c_msgs */
-//};
+struct i2c_rdwr_ioctl_data {
+	struct i2c_msg *msgs;	/* pointers to i2c_msgs */
+	int nmsgs;		/* number of i2c_msgs */
+};
 
 
 static inline __s32 i2c_smbus_access(int file, char read_write, __u8 command, 

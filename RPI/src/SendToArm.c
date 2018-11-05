@@ -7,6 +7,9 @@ uint8_t slave_id;
 uint8_t checkSum_Byte = 0;     
 uint8_t ReadyToFly_Data[READY_TO_FLY_BYTE];
 uint8_t Flying_Data[READY_TO_FLY_BYTE];
+uint8_t checkSum(uint8_t *data, uint8_t len );
+
+bool takeoff = 0;
 
 void setSlaveMCU (int _id) {
 	do {                                                                                                                                      
@@ -18,6 +21,7 @@ void setSlaveMCU (int _id) {
 
  
 void send_Arm_ReadyToFly() {
+/*
 	ReadyToFly_Data[0]  = rollX.pGain.integerL;
 	ReadyToFly_Data[1]  = rollX.pGain.integerH;
 	ReadyToFly_Data[2]  = rollX.pGain.decimalL;
@@ -66,21 +70,23 @@ void send_Arm_ReadyToFly() {
 	for(int i=0; i<READY_TO_FLY_BYTE;i++) {
 		wiringPiI2CWriteReg(slave_id, ReadyToFly_Data[i]);
 	}
+*/
 }
 
 void send_Arm_Flying() {
+/*
 	Flying_Data[0]  = roll.data.integerL;
-    Flying_Data[1]  = roll.data.integerH;
-    Flying_Data[2]  = roll.data.decimalL;
+	Flying_Data[1]  = roll.data.integerH;
+	Flying_Data[2]  = roll.data.decimalL;
 	Flying_Data[3]  = roll.data.decimalH;   
-    Flying_Data[4]  = pitch.data.integerL;
-    Flying_Data[5]  = pitch.data.integerH;
-    Flying_Data[6]  = pitch.data.decimalL;
-    Flying_Data[7]  = pitch.data.decimalH;   
+	Flying_Data[4]  = pitch.data.integerL;
+	Flying_Data[5]  = pitch.data.integerH;
+	Flying_Data[6]  = pitch.data.decimalL;
+	Flying_Data[7]  = pitch.data.decimalH;   
 	Flying_Data[8]  = yaw.data.integerL;
-    Flying_Data[9]  = yaw.data.integerH;
-    Flying_Data[10] = yaw.data.decimalL;
-    Flying_Data[11] = yaw.data.decimalH;   
+	Flying_Data[9]  = yaw.data.integerH;
+	Flying_Data[10] = yaw.data.decimalL;
+	Flying_Data[11] = yaw.data.decimalH;   
 	Flying_Data[12] = roll.server;
 	Flying_Data[13] = pitch.server;
 	Flying_Data[14] = yaw.server;
@@ -90,10 +96,10 @@ void send_Arm_Flying() {
 	Flying_Data[17] = checkSum_Byte;
 	for(int i=0; i<FLYING_BYTE;i++) {
 		wiringPiI2CWriteReg(slave_id, Flying_Data[i]);
-	}
+	}*/
 }
 
-uint8_t checkSum(uint8_t *data, uin8_t len ) {
+uint8_t checkSum(uint8_t *data, uint8_t len ) {
 	uint16_t sum = 0;
 	uint8_t nibble = 0;
 	for(int i=0;i<len;i++) {

@@ -25,53 +25,70 @@
 */
 
 // Include 
+
 #include "main.h"
 
 // Declaration
 using namespace std;
-void  INThandler(int sig);
-char getKey();			// fixme, don't use
-static void GPS_init();	// GPS 초기화 함수
+static void  INThandler(int sig);
+static void GPS_Init(loc_t *gps);	// GPS 초기화 함수
 static void IMU_Init(); // IMU 초기화 함수
-static void SONAR_Init(uint16_t id0, uint16_t id1); // 소나 초기화 함수
+static void SONAR_Init(SONAR *sonar0, SONAR *sonar1); // 소나 초기화 함수
 static void MQTT_Init(); // MQTT 초기화 함수
 static void PI_Init();   // PI 세팅 초기화 함수
 
 // 구조체 선언
-ANGLE pitch = {0,0,0,{0,0,0,0,0}};			
-ANGLE roll  = {0,0,0,{0,0,0,0,0}};			
+ANGLE pitch = {0,0,0,{0,0,0,0,0}};
+ANGLE roll  = {0,0,0,{0,0,0,0,0}};				
 ANGLE yaw   = {0,0,0,{0,0,0,0,0}};			
 SERVO servo = {0,0};							
 PID   dc0   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   dc1	= {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   dc2	= {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   dc3	= {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   bl0	= {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc1   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc2   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc3   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   bl    = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
-uint8_t bldcSpeed = 0;						
+uint8_t bldcSpeed = 0;		
+
+RTIMU_DATA imuData;
+RTIMUSettings *settings = new RTIMUSettings("RTIMULib");
+RTIMU *imu = RTIMU::createIMU(settings);		
 
 int main(int argc, char **argv) {
-
+	
+		
+	/* Initialize Variable */
+	float lidar_distance = 0;
+	uint64_t rateTimerSonar, rateTimerGps;
+	uint64_t tok, tokold, toktime;
+	uint64_t sonarTimer, displayTimer;
+	uint64_t now; 
+	uint16_t fd;
+	float ref = 0;
+	int cnt = 0, tokcnt = 1;
+	bool sonarFlag = true;
+	RTIMU_DATA imuData;
+	char *imuresult;
+	LIDAR lidar;
+	
 	/* Initialize Object */
 	loc_t gps;
-	RTIMUSettings *settings = new RTIMUSettings("RTIMULib");
-	RTIMU *imu = RTIMU::createIMU(settings);
-	SONAR sonar0;
-	SONAR sonar1;
-
+	SONAR sonar0 = SONAR(SONAR_ID0);
+	SONAR sonar1 = SONAR(SONAR_ID1);
+	
 	/* Interrupt for EXIT */
 	signal(SIGINT, INThandler);
 		
 	/* Initialize all configured peripherals */
-	SONAR_Init(0x71, 0x72);		
+	SONAR_Init(&sonar0, &sonar1);		
 	IMU_Init();				    
 	PI_Init();					
-	GPS_Init();					
+	GPS_Init(&gps);					
 	MQTT_Init();				
 	lidar.begin(0, 0x62);
-
+	
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
-	rateTimer = displayTimer = rateTimer_s = micros();
+	rateTimerSonar = displayTimer = rateTimerGps = micros();
 
 	while (1) {
 	
@@ -120,13 +137,13 @@ int main(int argc, char **argv) {
 		yaw.data.temp = (yaw.y - yaw.data.temp) 	  * 10000;
     	
 		// 실수 데이터를 2byte로 구분
-		roll.data.decimalL = roll.data.temp 	& 0xff;
-		pitch.data.decimalL = pitch.data.temp & 0xff;
-		yaw.data.decimalL = yaw.data.temp 	& 0xff;
+		roll.data.decimalL  = (int)roll.data.temp 	& 0xff;
+		pitch.data.decimalL = (int)pitch.data.temp   	& 0xff;
+		yaw.data.decimalL   = (int)yaw.data.temp 	& 0xff;
 
-		roll.data.decimalH = roll.data.temp 	>> 8;
-		pitch.data.decimalH = pitch.data.temp >> 8;
-		yaw.data.decimalH = yaw.data.temp 	>> 8;
+		roll.data.decimalH  = (int)roll.data.temp 	>> 8;
+		pitch.data.decimalH = (int)pitch.data.temp   	>> 8;
+		yaw.data.decimalH   = (int)yaw.data.temp 	>> 8;
 
 	
 		lidar_distance = lidar.distance();
@@ -161,10 +178,9 @@ int main(int argc, char **argv) {
 		
 		/* GPS Data */
 		now = micros();
-		if ((now - rateTimer_GPS) >= CONTROL_PERIOD_GPS { // 100ms 마다 실행
+		if ((now - rateTimerGps) >= CONTROL_PERIOD_GPS) { // 100ms 마다 실행
 			//gps_location(&gps);
-			lBeep();
-			rateTimer_s = now;			
+			rateTimerGps = now;			
 			//printf("%f %f %f\n", gps.latitude, gps.longitude, gps.altitude);
 		}
 	    
@@ -218,7 +234,7 @@ int main(int argc, char **argv) {
 		}
 
 		/* 10ms 마다 실행되며, 데이터가 요청되었을 경우, reading */
-		while ((now - rateTimer) < CONTROL_PERIOD) {
+		while ((now - rateTimerSonar) < CONTROL_PERIOD) {
 			if (((now - sonarTimer) >= 60000) && sonarFlag) {
 				sonar0.distance = sonar0.GetValues();
 				sonar1.distance = sonar1.GetValues();
@@ -226,25 +242,25 @@ int main(int argc, char **argv) {
 			}
 			now = micros();
 		}
-		rateTimer = now;
+		rateTimerSonar = now;
 		cnt++;
 	}
 	return 0;
 }
 
-static void GPS_init() {
+static void GPS_Init(loc_t *gps) {
 	gps_init();
-	gps.latitude = 0;
-	gps.longitude = 0;
-	gps.altitude = 0;			
-	gps.speed = 0.0;
-	gps.satellites = 0;
+	gps->latitude = 0;
+	gps->longitude = 0;
+	gps->altitude = 0;			
+	gps->speed = 0.0;
+	gps->satellites = 0;
 }
 
 static void IMU_Init() {
 	if ((imu==NULL) || (imu->IMUType()==RTIMU_TYPE_NULL)) {
 		printf("No IMU found\n");
-		exit(1);
+		//exit(1);
 	}
 	imu->IMUInit();
 	imu->setSlerpPower(0.02);
@@ -253,11 +269,9 @@ static void IMU_Init() {
 	imu->setCompassEnable(true);
 }
 
-static void SONAR_Init(uint16_t id0, uint16_t id1) {
-	sonar0 = SONAR(sonarid0);
-	sonar1 = SONAR(sonarid1);
-	sonar0.distance = 0;
-	sonar1.distance = 0;
+static void SONAR_Init(SONAR *sonar0, SONAR *sonar1) {
+	sonar0->distance = 0;
+	sonar1->distance = 0;
 }
 
 static void MQTT_Init() {
@@ -270,28 +284,13 @@ static void PI_Init() {
 		if (MAIN_DEBUG == 1) {
 			printf("Failed to wiringPiSetup\n");
 		}
-		return 1;
 	}	
 }
 
 
-void  INThandler(int sig) {
-	// Closing file and turning off Matrix
-	unsigned short int clear[] = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
-	displayImage(clear, res, daddress, file);
-	printf("Closing file and turning off \r\n");
-	daddress = 0x20;
-	for (daddress = 0xef; daddress >= 0xe0; daddress--) {
-		res = i2c_smbus_write_byte(file, daddress);
-	}
+static void INThandler(int sig) {
 	gps_off();
-	signal(sig, SIG_IGN);
+	mq_close();
 	exit(0);
-}
-
-char getKey() {
-	if(linux_kbhit()) 
-		return getchar();
-	return '\0';
 }
 

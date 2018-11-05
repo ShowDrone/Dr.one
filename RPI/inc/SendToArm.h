@@ -10,7 +10,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <termios.h>
-#include "i2c-dev.h"
+#include <i2c-dev.h>
 #include "main.h"
 #define FLYING_BYTE 18
 #define READY_TO_FLY_BYTE 40
@@ -32,8 +32,6 @@ extern int _getch();
 extern int _putch(int c);
 extern void send_Arm_ReadyToFly();
 extern void send_Arm_Flying();
-
-bool takeoff = 0;
 
 #endif
 

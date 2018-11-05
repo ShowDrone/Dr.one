@@ -6,10 +6,10 @@ EXTRALIBS += -lm -lmosquitto -lpthread -lRTIMULib -lwiringPi
 
 CFLAGS += -O2 -W -Wall
 
-MYOBJS =  ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o
+MYOBJS =  ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o //../obj/main.o
 
 .PHONY: all	
-all: ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o bin/main 
+all: ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o bin/main ../obj/main.o 
 
 .PHONY: clean
 clean:
@@ -35,6 +35,9 @@ clean:
 	${CC} -c $< ${CFLAGS} -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} 
 
 ../obj/lidar.o : Lidar.cxx
+	${CC} -c $< ${CFLAGS} -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} 
+
+../obj/main.o : main.cxx 
 	${CC} -c $< ${CFLAGS} -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} 
 
 bin/main : main.cxx
