@@ -48,7 +48,7 @@
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 
-//  아직 안씀
+//  ???? ???
 I2C_HandleTypeDef hi2c1;
 DMA_HandleTypeDef hdma_i2c1_rx;
 DMA_HandleTypeDef hdma_i2c1_tx;
@@ -62,24 +62,24 @@ TIM_HandleTypeDef htim4;
 /* Private variables ---------------------------------------------------------*/
 
 
-// DC 모터 구조체 선언
+// DC ???? ????u ????
 /*
-DC모터 방향 0~3 = A~D
+DC???? ???? 0~3 = A~D
      D
-    ㅡ
+    ??
  B|  | C
-    ㅡ
+    ??
      A
-  [로터리엔코더]
+  [??????????]
 */
 DC dc0 = {DC_A_DIR_GPIO_Port, DC_A_PWM_GPIO_Port, DC_A_DIR_Pin, DC_A_PWM_Pin , 0}; 
 DC dc1 = {DC_B_DIR_GPIO_Port, DC_B_PWM_GPIO_Port, DC_B_DIR_Pin, DC_B_PWM_Pin, 0};
 DC dc2 = {DC_C_DIR_GPIO_Port, DC_C_PWM_GPIO_Port, DC_C_DIR_Pin, DC_C_PWM_Pin, 0};
 DC dc3 = {DC_D_DIR_GPIO_Port, DC_D_PWM_GPIO_Port, DC_D_DIR_Pin, DC_D_PWM_Pin, 0};
 
-// BLDC 모터 구조체 선언  
-BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin};  // 위 모터가 0
-BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin};  // 아래 모터가 1
+// BLDC ???? ????u ????  
+BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin};  // ?? ????? 0
+BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin};  // ??? ????? 1
 
 //  ch0~3 = dc0~3
 CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0};  // newv, oldv, width, angle, data[3], status
@@ -109,23 +109,26 @@ static void MX_ADC2_Init(void);
 static void MX_NVIC_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-                                
+               
                                 
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-// 인터럽트 탐지 조건 바꾸는 함수, Falling Edge<-> Rising Edge
+// ?????? ??? ???? ???? ???, Falling Edge<-> Rising Edge
 static void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity);
-// 3개의 데이터를 이동 편균 내주는 함수
+// 3???? ??????? ??? ??? ????? ???
 float getMvAverage(__IO float *ch, __IO float value, int len);
-// bldc 모터 pid 계산 함수
-void setPidBLDC(PID pid, BL bl);
-// dc 모터 pid 계산 함수
-void setPidDC(PID pid, CH ch, DC dc);
+// bldc ???? pid ??? ???
+void setPidBLDC (PID pid, BL bl);
+// dc ???? pid ??? ???
+void setPidDC (PID *pid, CH *ch, DC *dc);
 
-
-float targetDeg = 10.;
+static int timer2Tick = 0;
+float targetDeg = 0;
+  
+uint8_t aTxBuffer[] = "abcdefg";
+uint8_t aRxBuffer[RXBUFFERSIZE];
 
 /* USER CODE END PFP */
 
@@ -174,51 +177,57 @@ int main(void)
   /* Initialize interrupts */
   MX_NVIC_Init();
   /* USER CODE BEGIN 2 */
-  printf("Hi\n");
 
   // BLDC Motor  490 Hz period  pulse width 0 ~ 2040
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);          // Bldc Motor 0
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);          // Bldc Motor 1
-    printf("Hi\n");
-
+  HAL_TIM_Base_Start_IT(&htim1);
+  
   // DC Motor 490Hz Period       pulse width 0 ~ 2040
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);          // DC Motor A
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);          // DC Motor B
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);          // DC Motor C
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);          // DC Motor D
-    printf("Hi\n");
-
+  
   // ESC Switch 490Hz Period     pulse width 0 ~ 2040
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);          // ESC Switch
-    printf("Hi\n");
-
+  
   // InputCaputre 0 ~ 7200 
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);           // Encoder A
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);           // Encoder B
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
   
+  if(HAL_I2C_Slave_Receive_IT(&hi2c1, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
+  {
+    printf("set slave Receive IT Failed\n");
+     _Error_Handler(__FILE__, __LINE__);
+  }
   
-  //HAL_DMA_Start_IT(&hdma_i2c1_rx, (uint32_t)Buffer_Src, (uint32_t)Buffer_Dest, 10);
- // HAL_DMA_Start_IT(&hdma_i2c1_tx, (uint32_t) Buffer_Src, (uint32_t)Buffer_Dest, 10);                 
-                                                                          
   
-  HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);      
-  TIM4 -> CCR3 = 1500;
-  printf("Hi\n");
-
+  /*
+   if(HAL_I2C_Slave_Transmit_IT(&hi2c1, (uint8_t*)aTxBuffer, TXBUFFERSIZE)!= HAL_OK)
+  {
+    printf("set slave Transmit IT Failed\n");
+    //Error_Handler();    
+  }*/
+  
+  
+ 
   /* USER CODE END 2 */
 
    
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   
+  
   while (1) 
   {
   /* USER CODE END WHILE */
-
+    
     
   /* USER CODE BEGIN 3 */
+    
     
       //HAL_I2C_Slave_Receive_DMA(&hi2c1, rxData, rxLength);
       //for(int i=0;i<rxLength;i++)
@@ -244,45 +253,11 @@ int main(void)
     }    
   */
     
-   // pid Control
-  setPidDC(pid0, ch0, dc0);
-  setPidDC(pid1, ch1, dc1);
-  setPidDC(pid2, ch2, dc2);
-  setPidDC(pid3, ch3, dc3);
-  
-  /* DC 모터 방향 설정  */
-  // DC Motor Directrion, GPIO_PIN_RESET = inside, GPIO_PIN_SET = outside
-  if(pid0.control > 0) 
-      HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);      
-  else
-      HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
-  if(pid1.control > 0) 
-      HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);
-  else
-      HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
-  if(pid2.control > 0) 
-      HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
-  else
-      HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
-  
-  if(pid3.control > 0) 
-      HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);
-  else
-      HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);  
-  
-  
-   
-  // TODO abs 함수 사용해야함. 
-  //TIM4 -> CCR3 = dc0.setValue; // DC_A
-  //TIM4 -> CCR4 = dc1.setValue; // DC_B
-  //TIM2 -> CCR3 = dc2.setValue; // DC_C
-  //TIM2 -> CCR4 = dc3.setValue; // DC_D
-  
     
-  // ch0~3번 엔코더에 새로운 데이터가 입력이 되었으면, 이동 평균 필터에 데이터를 입력
+  // ch0~3?? ??????? ???ο? ??????? ????? ???????, ??? ??? ????? ??????? ???
     if(ch0.status == 1) 
     {
-      // 이동평균필터 함수에 새로운 데이터를 넣어, 평균 값 도출
+      // ?????????? ????? ???ο? ??????? ???, ??? ?? ????
         getMvAverage(ch0.data, ch0.width, 3); 
         ch0.status = 0;
     }
@@ -294,7 +269,7 @@ int main(void)
     
     if(ch2.status == 1)
     {
-        getMvAverage(ch2.data, ch2.width, 3);
+        getMvAverage(ch2.data, ch2.width, 3); 
         ch2.status = 0;
     }
     if(ch3.status == 1)
@@ -303,37 +278,56 @@ int main(void)
         ch3.status = 0;
     }
     
-    //엔코더로 입력된 7200 펄스를 360도 각도로 변환
+    //??????? ??μ? 7200 ????? 360?? ?????? ???
     ch0.angle = ch0.width*0.05;     
     ch1.angle = ch1.width*0.05;
     ch2.angle = ch2.width*0.05;  
     ch3.angle = ch3.width*0.05;
-  
 
-    printf("ch0: %.3f\t",  ch0.angle);   printf("ch1: %.3f\t",  ch1.angle);  
-    printf("ch2: %.3f\t",  ch2.angle);   printf("ch3: %.3f\t",  ch3.angle);   
-    printf("\n");
+   /* printf("ch0: %.3f\t",  ch0.angle); / printf("ch1: %.3f\t",  ch1.angle);  
+    printf("ch2: %.3f\t",  ch2.angle);   printf("ch3: %.3f\t",  ch3.angle); 
+    printf("\n");*/
     
-    HAL_Delay(100);
     
+   // pid Control
+    setPidDC(&pid0, &ch3, &dc0);
+    setPidDC(&pid1, &ch2, &dc1);
+    setPidDC(&pid2, &ch1, &dc2);
+    setPidDC(&pid3, &ch0, &dc3);
+    /* DC ???? ???? ????  */
+    // DC Motor Directrion, GPIO_PIN_RESET = inside, GPIO_PIN_SET = outside
    
-/*
-    HAL_GPIO_TogglePin(GPIOA, LED_Pin);    
-    char keyEvent[4];
-    gets(keyEvent, sizeof(keyEvent), stdin);
-    keyEvent[strlen(keyEvent)-1] = '\0';
-    printf("%s\n", keyEvent);  
-*/    
-    /*printf("Hello Loop\n");
-    HAL_GPIO_WritePin(dc0.dirPort,  dc0.dirID, GPIO_PIN_RESET);
-    TIM4->CCR3 = 200;
-    HAL_Delay(100);   
-    HAL_GPIO_WritePin(dc0.dirPort,  dc0.dirID, GPIO_PIN_SET);
-    TIM4->CCR3 = 3600; */       
     
-  }
-  /* USER CODE END 3 */
+    if(pid0.control > 0) 
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);      
+    else
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
+    if(pid1.control > 0) 
+        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);    
+    if(pid2.control > 0) 
+        HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
+    if(pid3.control > 0) 
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
+  
+    // TODO abs ??? ????????. 
 
+    TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
+    TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
+    TIM2 -> CCR3 = abs(dc2.setValue); // DC_C
+    TIM2 -> CCR4 = abs(dc3.setValue); // DC_D 
+
+    printf("A:\t"); printf("%d\t\t",dc0.setValue); printf("%f\n", ch3.angle);
+    printf("B:\t"); printf("%d\t\t",dc1.setValue); printf("%f\n", ch2.angle);
+    printf("C:\t"); printf("%d\t\t",dc2.setValue); printf("%f\n", ch1.angle);
+    printf("D:\t"); printf("%d\t\t",dc3.setValue); printf("%f\n\n", ch0.angle);
+        
+  }
 }
 
 /**
@@ -370,10 +364,11 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+ if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+
 
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
@@ -511,9 +506,9 @@ static void MX_I2C1_Init(void)
 {
 
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.ClockSpeed = I2C_SPEEDCLOCK;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 254;
+  hi2c1.Init.OwnAddress1 = I2C_ADDRESS;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
   hi2c1.Init.OwnAddress2 = 0;
@@ -523,6 +518,12 @@ static void MX_I2C1_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+
+ HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0); 
+ HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);  
+ 
+ HAL_NVIC_SetPriority(I2C1_ER_IRQn, 0, 0); 
+ HAL_NVIC_EnableIRQ(I2C1_ER_IRQn); 
 
 }
 
@@ -535,7 +536,7 @@ static void MX_TIM1_Init(void)
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 71; // pwm 속도를 490Hz[esc입력 한계속도가 500hz기 때문에]로 맞추기 위해 Presecaler와 Period를 71, 2040으로 설정 
+  htim1.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 2039; // 2040
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -554,7 +555,7 @@ static void MX_TIM1_Init(void)
   }
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 2039;
+  sConfigOC.Pulse = 1000;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
@@ -606,7 +607,7 @@ static void MX_TIM2_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 71; // pwm 속도를 490Hz[esc입력 한계속도가 500hz기 때문에]로 맞추기 위해 Presecaler와 Period를 71, 2040으로 설정 
+  htim2.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 2039;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -660,9 +661,9 @@ static void MX_TIM3_Init(void)
   TIM_IC_InitTypeDef sConfigIC;
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 8; //  엔코더입력 속도가 1100hz고 period는 7200으로 정해져있기에 prescaler는 72,000,000/7200/1100= x, x는 9지만 Presecaler는 -1해서 넣어야되기 때문에 8
+  htim3.Init.Prescaler = 8; //  ???????? ????? 1100hz?? period?? 7200???? ????????? prescaler?? 72,000,000/7200/1100= x, x?? 9???? Presecaler?? -1??? ?????? ?????? 8
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 7199; // 입력 최소 각도가 0.05도기 때문에 0.05 : 1 = 360 : 7200,
+  htim3.Init.Period = 7199; // ??? ??? ?????? 0.05???? ?????? 0.05 : 1 = 360 : 7200,
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
@@ -711,7 +712,7 @@ static void MX_TIM4_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 71; // pwm 속도를 490Hz[esc입력 한계속도가 500hz기 때문에]로 맞추기 위해 Presecaler와 Period를 71, 2040으로 설정 
+  htim4.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 2039;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -765,7 +766,6 @@ static void MX_DMA_Init(void)
 */
 static void MX_GPIO_Init(void)
 {
-
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /* GPIO Ports Clock Enable */
@@ -811,16 +811,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+ 
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
 
 
-// TODO: targetDeg 대신 rpi에서 받은 YAW값을 대입해야함.
+// TODO: targetDeg ??? rpi???? ???? YAW???? ?????????.
 void setPidBLDC(PID pid, BL bl)
 {
-  pid.err; //targetDeg - ch.angle;
+  pid.err; //= targetDeg - ch.angle;
   pid.de = pid.err - pid.err_prev;
   pid.dt = 0.001;
   pid.p = pid.err * pid.kp;
@@ -835,52 +840,63 @@ void setPidBLDC(PID pid, BL bl)
 }
 
 
-void setPidDC(PID pid, CH ch, DC dc)
+void setPidDC(PID *pid, CH *ch, DC *dc)
 {
-  pid.err = targetDeg - ch.angle;        // 목표 값 - 현재 값
-  pid.de = pid.err - pid.err_prev;        //  에러 차이 저장
-  pid.dt = 0.001;                                  // 루프 속도 1000Hz
-  pid.p = pid.err * pid.kp;                    // 에러 * p게인
-  pid.i = pid.i + pid.err * pid.dt * pid.ki;// i 적분 누적
+  pid->err = targetDeg - ch->angle;        // ??? ?? - ???? ?? 
+  pid->de = pid->err - pid->err_prev;        //  ???? ???? ????
+  pid->dt = 0.001;                                  // ???? ??? 1000Hz
+  pid->p = pid->err * pid->kp;                    // ???? * p????
+  pid->i = pid->i + pid->err * pid->dt * pid->ki;// i ???? ????
   
-  // 누적으로 인한 값 커짐을 방지하기 위해 max, min 한계 설정
-  pid.i = (pid.i > 100.) ? 100. : pid.i;      
-  pid.i = (pid.i < -100.) ? -100. : pid.i;
-  pid.d = pid.kd * (pid.de / pid.dt);      // d 계산
-  pid.control = pid.p + pid.i + pid.d;     // 각각 제어를 더하여 pid 결과값 도출
+  // ???????? ???? ?? Ŀ???? ??????? ???? max, min ??? ????
+  pid->i = (pid->i > 100.) ? 100. : pid->i;      
+  pid->i = (pid->i < -100.) ? -100. : pid->i;
+  pid->d = pid->kd * (pid->de / pid->dt);      // d ???
+  pid->control = pid->p + pid->i + pid->d;     // ???? ???? ????? pid ????? ????
   
-  // pid 결과 값이 +-2040보다 초과되지 않게
-  pid.control = (pid.control > 2040.) ? 2040. : pid.control;           
-  pid.control = (pid.control < -2040.) ? -2040. : pid.control;     
-  dc.setValue = pid.control;
-  pid.err_prev = pid.err;
+  // pid ??? ???? +-2040???? ??????? ???
+  pid->control = (pid->control > 2040.) ? 2040. : pid->control;           
+  pid->control = (pid->control < -2040.) ? -2040. : pid->control;     
+  dc->setValue = pid->control;
+  pid->err_prev = pid->err;
 }
                    
-void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c)
+void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
 {
-  
+    printf("hi\n");
 }
 
-/* input capture시에 callback되는 함수*/
+void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *I2cHandle)
+{
+    printf("hi\n");
+}
+
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *I2cHandle)
+{
+}
+
+
+/* input capture?y? callback??? ???*/
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-  // INPUT CAPTURE 호출이 TIM3 에 의해 이루어졌을 경우
+  // INPUT CAPTURE ????? TIM3 ?? ???? ???????? ???
   if(htim ->Instance == TIM3)
-  {  
-      if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) // TIM 채널이 1일 경우
+  {
+    timer2Tick ++;
+      if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) // TIM a???? 1?? ???
       {
-            ch0.newv = htim ->Instance->CCR1;                 // 채널0 newv에 현재 시간 저장
-            if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_6))    //  RISING EDGE으로 실행 됏을 경우
+            ch0.newv = htim ->Instance->CCR1;                 // a??0 newv?? ???? ?ð? ????
+            if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_6))    //  RISING EDGE???? ???? ???? ???
             {
-                ch0.oldv = ch0.newv;                                   //  나중에 FALLING EDGE일 때의 펄스 폭 계산을 위해지금 데이터를 old에 저장
-                set_polarity(TIM3,1,2);                                 //   인터럽트 조건을 RISING EDGE에서 FALLING EDGE로 변환
+                ch0.oldv = ch0.newv;                                   //  ????? FALLING EDGE?? ???? ??? ?? ????? ???????? ??????? old?? ????
+                set_polarity(TIM3,1,2);                                 //   ?????? ?????? RISING EDGE???? FALLING EDGE?? ???
             }
             else
             {      
-                set_polarity(TIM3,1,0);                                 // 인터럽트 조건을 FALLING EDGE에서 RISING EDGE로 변환
-                // falling 했을 때와 rising했을 때를 뺄셈 계산하여 펄스폭 계산 [오버플로우까지 고려]
+                set_polarity(TIM3,1,0);                                 // ?????? ?????? FALLING EDGE???? RISING EDGE?? ???
+                // falling ???? ???? rising???? ???? ???? ?????? ????? ??? [?????÷ο???? ???]
                 ch0.width  = (ch0.newv > ch0.oldv)? (ch0.newv - ch0.oldv) : (7200 + ch0.newv - ch0.oldv); 
-                ch0.status = 1;  // 새로운 펄스 폭 데이터가 갱신
+                ch0.status = 1;  // ???ο? ??? ?? ??????? ????
             }
       }
       else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
@@ -932,33 +948,33 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
   }
 }
 
-// 인터럽트 탐지 조건 바꾸는 함수, TIM 1채널로 RISING, FALLING을 검출하기 위해 사용
+// ?????? ??? ???? ???? ???, TIM 1a?η? RISING, FALLING?? ??????? ???? ???
 void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity)
 { // ch(1,2,3,4), polarity 0: rise,high, 2: fall,low
   uint16_t c = TIM_CCER_CC1P << ((ch-1)*4);
-  if( polarity == 0 )           // RISING으로 변환
+  if( polarity == 0 )           // RISING???? ???
       tim->CCER &= ~c;
-  else                            // FALLING으로 변환
+  else                            // FALLING???? ???
       tim->CCER |= c;
 }
 
-// 3개의 데이터를 이동 평균 내는 함수
+// 3???? ??????? ??? ??? ???? ???
 float getMvAverage(__IO float *ch, __IO float value, int len)
 {
     float sum = 0;
     
-    //  데이터를 한칸 쉬프트, ex 배열[1]에 있는 데이터를 배열 [0]으로 이동, 
+    //  ??????? ??? ?????, ex ?迭[1]?? ??? ??????? ?迭 [0]???? ???, 
     for(int i=0;i<len-1;i++)
       ch[i] = ch[i]+1;
        
-    // 배열 마지막에 새로운 데이터 저장
+    // ?迭 ???????? ???ο? ?????? ????
     ch[len-1] = value; 
     
-    //  입력 받은 데이터와 기존 데이터를 합산
+    //  ??? ???? ??????? ???? ??????? ???
     for(int i=0;i<len;i++)
       sum += ch[i];
     
-    return sum / (float)len; // 합산 데이터와 데이터 길이는 나눠 반환
+    return sum / (float)len; // ??? ??????? ?????? ????? ???? ???
     
 }
 

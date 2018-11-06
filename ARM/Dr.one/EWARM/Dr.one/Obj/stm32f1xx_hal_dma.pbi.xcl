@@ -1,17 +1,17 @@
-"C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_dma.c"
+"C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_dma.c"
 -std=c11
 -ferror-limit=0
 -fbracket-depth=512
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\EWARM/../Inc
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\EWARM/../Drivers/CMSIS/Device/ST/STM32F1xx/Include
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/CMSIS/Device/ST/STM32F1xx/Include
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\EWARM/../Drivers/CMSIS/Include
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/CMSIS/Include
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\CMSIS\Core\Include
 -I
@@ -21,15 +21,15 @@ C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\inc
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\inc\c
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\Inc
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc\Legacy
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc\Legacy
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\Drivers\CMSIS\Device\ST\STM32F1xx\Include
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\CMSIS\Device\ST\STM32F1xx\Include
 -I
-C:\Users\seunghyun\Desktop\Dr.one\Dr.one\ARM\Dr.one\Drivers\CMSIS\Include
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\CMSIS\Include
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\CMSIS\Core\Include
 -I

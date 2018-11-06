@@ -49,7 +49,8 @@
 #include "stm32f1xx_hal.h"
 #include "stm32f103xe.h"
 #include <stdint.h>
-
+#include <math.h>
+    
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
@@ -116,11 +117,11 @@
 
 /* USER CODE BEGIN Private defines */
 
-#define rxLength 20
-#define txLength 10    
-   
+#define I2C_ADDRESS        0x60   
+#define I2C_SPEEDCLOCK   400000
+#define TXBUFFERSIZE                      7
+#define RXBUFFERSIZE                      20
 
-    
 typedef struct Ch
 {
    __IO uint16_t  newv;
@@ -136,12 +137,12 @@ typedef struct Dc {
   GPIO_TypeDef  *pwmPort;
   __IO int8_t   dirID;
   __IO int8_t   pwmID;
-  int16_t       setValue;
+  int       setValue;
  } DC;
  
 typedef struct Bl {
   GPIO_TypeDef *port;
-  __IO int8_t   pwmID;
+  int8_t   pwmID;
   int16_t       setValue;
  } BL;
 
