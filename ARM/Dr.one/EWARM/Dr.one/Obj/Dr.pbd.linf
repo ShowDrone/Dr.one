@@ -1,5 +1,8 @@
 ﻿C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\Dr.pbd
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\main.pbi
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_msp.pbi
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_it.pbi
+C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\system_stm32f1xx.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_adc.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_adc_ex.pbi
@@ -10,11 +13,8 @@ C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_flas
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_gpio.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_gpio_ex.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_i2c.pbi
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_msp.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_pwr.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_rcc.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_rcc_ex.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_tim.pbi
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal_tim_ex.pbi
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_it.pbi
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\system_stm32f1xx.pbi
