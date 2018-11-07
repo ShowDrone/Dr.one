@@ -37,7 +37,7 @@ void IMU_Init(); // IMU 초기화 함수
 void SONAR_Init(SONAR *sonar0, SONAR *sonar1); // 소나 초기화 함수
 void MQTT_Init(); // MQTT 초기화 함수
 void PI_Init();   // PI 세팅 초기화 함수
-void I2C_Init();
+void setSeparate(ANGLE *axis);
 
 // 구조체 선언
 ANGLE pitch = {0,0,0,{0,0,0,0,0}};
@@ -82,73 +82,52 @@ int main(int argc, char **argv) {
 		
 	/* Initialize all configured peripherals */			    
 	PI_Init();
-	I2C_Init();	
-	SONAR_Init(&sonar0, &sonar1);		
 	IMU_Init();					
 	GPS_Init(&gps);				
-	lidar.begin(0, 0x62);			
 	MQTT_Init();		
-	printf("Mdan\r\n");
+	SONAR_Init(&sonar0, &sonar1);			
+	lidar.begin(0, 0x62);		
+	printf("Main\r\n");
 	
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
 
 	while (1) {
-		printf("Loop Check\r\n");
 	    // imu로 9축 데이터 읽어 오는 곳.
+
 		while(imu->IMURead()); 
 		imuData = imu->getIMUData();
 		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
 		imuresult=(char *)RTMath::displayDegrees("",imuData.fusionPose);
 		imuresult=strtok(imuresult,":");
 		imuresult=strtok(NULL,",");
-		roll.y =atof(imuresult) + 180;  // roll
+		roll.y =atof(imuresult)+180;  // roll
 		imuresult=strtok(NULL,":");
 
 		imuresult=strtok(NULL,",");
-		pitch.y=atof(imuresult) + 180; //pitch
+		pitch.y=atof(imuresult)+180; //pitch
 		
 		imuresult=strtok(NULL,":");
 		imuresult=strtok(NULL,":");
-		//yaw.y=atof(imuresult) + 180.; //yaw
+		yaw.y=atof(imuresult) + 180.; //yaw
 		tokold = micros();
+		printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch.y, roll.y, yaw.y);
 
+		fflush(stdout);
+		
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
 		// 소수점 뗴기
-		roll.data.temp  = floor(roll.y);		
-		pitch.data.temp = floor(pitch.y);
-		yaw.data.temp = floor(yaw.y);
 
-		// 정수 부분의 데이터가 1byte[255] 초과될 경우 Low, High로 데이터 분리
-		if (abs(roll.data.temp) > 255 ) {
-			roll.data.integerL = 255;
-			roll.data.integerH = roll.data.temp - 255;
-		}
-		if (abs(pitch.data.temp) > 255 ) {
-			pitch.data.integerL = 255;
-			pitch.data.integerH = pitch.data.temp - 255;
-		}
-		if (abs(yaw.data.temp) > 255 ) {			
-			yaw.data.integerL = 255;				
-			yaw.data.integerH = yaw.data.temp - 255;	
-		}  									
-		
-		// 소수는 통신이 안되니 정수형으로 전환
-		roll.data.temp = (roll.y - roll.data.temp) 	  * 10000;
-		pitch.data.temp = (pitch.y - pitch.data.temp) * 10000;
-		yaw.data.temp = (yaw.y - yaw.data.temp) 	  * 10000;
-    	
-		// 실수 데이터를 2byte로 구분
-		roll.data.decimalL  = (int)roll.data.temp 	& 0xff;
-		pitch.data.decimalL = (int)pitch.data.temp   	& 0xff;
-		yaw.data.decimalL   = (int)yaw.data.temp 	& 0xff;
+		setSeparate(&roll);
+		setSeparate(&pitch);
+		setSeparate(&yaw); 		
 
-		roll.data.decimalH  = (int)roll.data.temp 	>> 8;
-		pitch.data.decimalH = (int)pitch.data.temp   	>> 8;
-		yaw.data.decimalH   = (int)yaw.data.temp 	>> 8;
+		printf("%d %d %d %d\r\n", roll.data.integerL, roll.data.integerH, roll.data.decimalL, roll.data.decimalH);
 
-	
-		lidar_distance = lidar.distance();
+		fflush(stdout);
+
+
+		//lidar_distance = lidar.distance();
 
 		// FIXME, setValue에 값이 1이라면 pitch만 제어, 2라면 roll만 제어, 3이라면 yaw제어 , 4라면 전체 다 제어, [테스트 용도]
 		if (rpi.setValue == 1 || rpi.setValue == 4) {			
@@ -180,11 +159,11 @@ int main(int argc, char **argv) {
 		
 		/* GPS Data */
 		now = micros();
-		if ((now - rateTimerGps) >= CONTROL_PERIOD_GPS) { // 100ms 마다 실행
+		/*if ((now - rateTimerGps) >= CONTROL_PERIOD_GPS) { // 100ms 마다 실행
 			//gps_location(&gps);
 			rateTimerGps = now;			
 			//printf("%f %f %f\n", gps.latitude, gps.longitude, gps.altitude);
-		}
+		}*/
 	    
 
 		
@@ -193,7 +172,8 @@ int main(int argc, char **argv) {
 			printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch, roll, yaw);
 			printf("Lidar: %3.3f\n", lidar_distance);
 			printf("GPS:   %3.3f %3.3f %3.3f\n", gps.latitude, gps.longitude, gps.altitude);
-			printf("--------END--------\n\n");*/
+			printf("--------END--------\n\n");
+			fflush(stdout);*/
 		}
 
 		tok = micros();
@@ -207,20 +187,15 @@ int main(int argc, char **argv) {
 			mq_send("pidrone/SONAR", mqbuf);
 			sprintf(mqbuf, "%i,%i\r", sonar1.id, sonar1.distance);
 			mq_send("pidrone/SONAR", mqbuf);
-			/*
 			sprintf(mqbuf, "%lf,%lf,%lf,%i,%lf,%i\r", gps.latitude, gps.longitude, gps.altitude, gps.satellites, gps.speed*1.8);
 			printf("%lf %lf %lf \n", gps.latitude, gps.longitude, gps.altitude);
 			mq_send("pidrone/GPS", mqbuf);
-			*/
 			sprintf(mqbuf,"%s\r",RTMath::displayDegrees("",imuData.fusionPose));
 			mq_send("pidrone/IMU",mqbuf);
-
 			toktime = toktime / tokcnt;
 			tokcnt = 0;
-			/*
 			sprintf(mqbuf, "measured time is %llds.\r\n", toktime);
 			mq_send("pidrone/PI", mqbuf);
-			*/
 			fflush(stdout);
 			displayTimer = now;
 		}
@@ -294,8 +269,22 @@ void PI_Init() {
 	}	
 }
 
-void I2C_Init() {
 
+void setSeparate(ANGLE *axis) {
+	axis->data.temp = floor(axis->y);
+	if(abs(axis->data.temp) > 255) {
+		axis->data.integerL = 255;
+		axis->data.integerH = axis->data.temp-255;
+	}
+	else {
+		axis->data.integerL = axis->data.temp;
+		axis->data.integerH = 0;
+		
+	}
+	
+	axis->data.temp = (axis->y - axis->data.temp) * 10000;
+	axis->data.decimalL = (int)axis->data.temp & 0xff;
+	axis->data.decimalH = (int)axis->data.temp >> 8;
 }
 
 void INThandler(int sig) {

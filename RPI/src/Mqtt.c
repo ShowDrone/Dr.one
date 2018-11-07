@@ -3,7 +3,7 @@
 #define MQTT_DEBUG 1 // MQTT
 
 char *user = "pi";      // Raspberry Pi ID
-char *pw = "vkdlemfhs"; // Raspberry Pi Password
+char *pw = "rkswlql1"; // Raspberry Pi Password
 char *mqbuf = (char *)malloc(70 * sizeof(char));
 void setSeparate(PID *pid);
 
