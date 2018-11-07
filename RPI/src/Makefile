@@ -2,19 +2,22 @@ CC := g++
 
 EXTRAINCDIRS += -I "../inc"
 EXTRALDFLAGS += -L/usr/local/lib -L"../lib"
-EXTRALIBS += -lm -lmosquitto -lpthread -lRTIMULib -lwiringPi
+EXTRALIBS += -lwiringPi -lm -lmosquitto -lpthread -lRTIMULib -lwiringPi
 
 CFLAGS += -O2 -W -Wall
 
 MYOBJS =  ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o
-
+ 
 .PHONY: all	
 all: ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o bin/main 
 
 .PHONY: clean
 clean:
-	rm -rf bin/*.o rm -rf ../obj/*.o
+	rm -rf bin/main rm -rf ../obj/*.o
 
+
+../obj/main.o : main.c
+	${CC} -c $< ${CFLAGS} -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} 
 
 ../obj/Sonar.o : Sonar.cxx 
 	${CC} -c $< ${CFLAGS} -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} 
@@ -37,6 +40,6 @@ clean:
 ../obj/lidar.o : Lidar.cxx
 	${CC} -c $< ${CFLAGS} -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} 
 
-bin/main : main.cxx
+bin/main : main.c
 	${CC} ${CFLAGS} $^ -o $@ ${EXTRALDFLAGS} ${EXTRALIBS} ${EXTRAINCDIRS} ${MYOBJS}
 

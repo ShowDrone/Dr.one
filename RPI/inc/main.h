@@ -1,5 +1,6 @@
 
-#pragma once
+#ifndef __MAIN_H__
+#define __MAIN_H__
 
 /* Includes ------------------------------------------------------------------*/    
 #include <stdio.h>
@@ -21,8 +22,11 @@
 #define CONTROL_PERIOD 10000 		// 10ms
 #define CONTROL_PERIOD_GPS 100000	// 100ms
 #define DISPLAY_PERIOD 100000		// 100ms
-#define SONAR_ID0	0x71
-#define SONAR_ID1	0x72
+
+#define I2C_ADDRESS_SONAR0 0x71
+#define I2C_ADDRESS_SONAR1 0x72
+#define I2C_ADDRESS_MPU9150 0x68
+
 
 /* Private Declaration -------------------------------------------------------*/
 
@@ -67,3 +71,4 @@ extern PID   bl;
 extern SERVO servo;
 extern uint8_t bldcSpeed;
 
+#endif

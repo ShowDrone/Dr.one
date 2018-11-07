@@ -1,12 +1,11 @@
 
-
 #include "Mqtt.h"
-
+#define MQTT_DEBUG 1 // MQTT
 
 char *user = "pi";      // Raspberry Pi ID
 char *pw = "vkdlemfhs"; // Raspberry Pi Password
 char *mqbuf = (char *)malloc(70 * sizeof(char));
-void setSeparate(PID pid);
+void setSeparate(PID *pid);
 
 struct mosquitto *mosq = NULL;
 
@@ -65,39 +64,39 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		else if (getid == 4) { // pitch
    	   		pitch.server = getValue;
    			if(MQTT_DEBUG == 1)
-        		printf("pitch.server=%.1f\r\n", pitch.server);
+        			printf("pitch.server=%.1f\r\n", pitch.server);
    		}
-    	else if (getid == 5) { // pitch
-			/*
-     		em1.setValue = getValue;
-      		if (MQTT_DEBUG == 1)
-        		printf("em1 setValue=%.1f\r\n", em1.setValue);
-			*/
-    	}
-   		else if (getid == 6) { // roll
-      		roll.server = getValue;
-      		if (MQTT_DEBUG == 1)
-        		printf("roll.server=%.1f\r\n", roll.server);
-    	}
-    	else if (getid == 7) { // roll
-      		/*
-			em3.setValue = getValue;
-      		if (MQTT_DEBUG == 1)
-        		printf("roll.ser=%.1f\r\n", em3.setValue);
-			*/
-    	}
-    	else if (getid == 10) { // Servo
-     		servo.y = getValue;
-      		if (MQTT_DEBUG == 1)
-        		printf("servo=%.1f\r\n", servo.y);
-  	    }
-    	else if (getid == 11) {
-			/*
-      		sm1.setValue = getValue;
-      		if (MQTT_DEBUG == 1)
-        		printf("sm1 setValue=%.1f\r\n", sm1.setValue);
-			*/
-   		}
+	    	else if (getid == 5) { // pitch
+				/*
+	     		em1.setValue = getValue;
+	      		if (MQTT_DEBUG == 1)
+	        		printf("em1 setValue=%.1f\r\n", em1.setValue);
+				*/
+	    	}
+	   		else if (getid == 6) { // roll
+	      		roll.server = getValue;
+	      		if (MQTT_DEBUG == 1)
+	        		printf("roll.server=%.1f\r\n", roll.server);
+	    	}
+	    	else if (getid == 7) { // roll
+	      		/*
+				em3.setValue = getValue;
+	      		if (MQTT_DEBUG == 1)
+	        		printf("roll.ser=%.1f\r\n", em3.setValue);
+				*/
+	    	}
+	    	else if (getid == 10) { // Servo
+	     		servo.y = getValue;
+	      		if (MQTT_DEBUG == 1)
+	        		printf("servo=%.1f\r\n", servo.y);
+	   	}
+	    	else if (getid == 11) {
+				/*
+	      		sm1.setValue = getValue;
+	      		if (MQTT_DEBUG == 1)
+	        		printf("sm1 setValue=%.1f\r\n", sm1.setValue);
+				*/
+	   	}
 	}
 	mosquitto_topic_matches_sub("pidrone/CMD/BL", message->topic, &match);
 	if (match) {
@@ -263,7 +262,6 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 			*/
 		}
 	}
-	
 	mosquitto_topic_matches_sub("pidrone/PID/DC", message->topic, &match);
 	if (match) {
 		msg = (char *)message->payload;
@@ -274,37 +272,46 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		    dc0.p = atof(s1);
 			s1 = strtok(NULL, ",");
 		    dc0.i = atof(s1);
-			s1 = strtok(NULL, "");
+			s1 = strtok(NULL, "\r");
 		    dc0.d = atof(s1);
-			setSeparate(dc0);
+			setSeparate(&dc0);
 		}
 		if(getid == 1) {
 			s1 = strtok(NULL, ",");
 		    dc1.p = atof(s1);
 			s1 = strtok(NULL, ",");
 		    dc1.i = atof(s1);
-			s1 = strtok(NULL, "");
+			s1 = strtok(NULL, "\r");
 		    dc1.d = atof(s1);
-			setSeparate(dc1);
+			setSeparate(&dc1);
 		}
 		if(getid == 2) {
 			s1 = strtok(NULL, ",");
 		    dc2.p = atof(s1);
 			s1 = strtok(NULL, ",");
 		    dc2.i = atof(s1);
-			s1 = strtok(NULL, "");
+			s1 = strtok(NULL, "\r");
 		    dc2.d = atof(s1);
-			setSeparate(dc2);
+			setSeparate(&dc2);
 		}
 		if(getid == 3) {
 			s1 = strtok(NULL, ",");
 		    dc3.p = atof(s1);
 			s1 = strtok(NULL, ",");
 		    dc3.i = atof(s1);
-			s1 = strtok(NULL, "");
+			s1 = strtok(NULL, "\r");
 		    dc3.d = atof(s1);
-			setSeparate(dc3);
+			setSeparate(&dc3);
 		}
+		printf("DC0: %f %f %f\r\n", dc0.p, dc0.i, dc0.d);
+		printf("DC1: %f %f %f\r\n", dc1.p, dc1.i, dc1.d);
+		printf("DC2: %f %f %f\r\n", dc2.p, dc2.i, dc2.d);
+		printf("DC3: %f %f %f\r\n", dc3.p, dc3.i, dc3.d);
+		//int16_t testVariable = 0;
+		//testVariable = (dc0.pGain.decimalH << 8) | (dc0.pGain.decimalL);
+		//float ta = (float)testVariable / 10000;
+		//printf("dc0.data: %d %d %d %d %d %f\r\n", dc0.pGain.integerL, dc0.pGain.integerH, dc0.pGain.decimalL, dc0.pGain.decimalH,testVariable, ta);
+		
 	}
 	mosquitto_topic_matches_sub("pidrone/PID/BL", message->topic, &match);
 	if (match) {
@@ -313,11 +320,10 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		bl.p = atof(s1);
 		s1 = strtok(NULL, ",");
 		bl.i = atof(s1);
-		s1 = strtok(NULL, ",");
-		bl.d = atof(s1);
-		s1 = strtok(NULL, "");
-		printf("%f %f %f\r\n", bl.p, bl.i, bl.d); 
-		setSeparate(bl);
+		s1 = strtok(NULL, "\r");
+		bl.d = atof(s1);;
+		printf("BL: %f %f %f\r\n", bl.p, bl.i, bl.d); 
+		setSeparate(&bl);
 	}
 }
 
@@ -328,18 +334,20 @@ void mq_init() {
 	mosquitto_username_pw_set(mosq, user, pw);
 	mosquitto_message_callback_set(mosq, message_callback);
 	if (mosquitto_connect(mosq, "168.188.40.28", 1883, 60)) {
-		printf("mqtt connect error\r\n");;
+		printf("Mqtt connect error\r\n");;
 	}
 	mosquitto_subscribe(mosq, NULL, "pidrone/CMD/#", 0);
+	mosquitto_subscribe(mosq, NULL, "pidrone/PID/#", 0);
 }
 
 void mq_start() {
 	int stat = mosquitto_loop_start(mosq);
 	while (stat) {
-		printf("connection error!\r\n");
+		printf("Mqtt connection error!\r\n");
 		//usleep(20000);
 		mosquitto_reconnect(mosq);
 	}
+	printf("Mqtt Connection Ok\r\n");
 }
 
 int mq_send(const char *topic, const char *msg) {
@@ -352,24 +360,24 @@ void mq_close() {
 }
 
 
-void setSeparate(PID pid) {
-	pid.pGain.temp = floor(pid.p);
-	pid.iGain.temp = floor(pid.i);		
-	pid.dGain.temp = floor(pid.d);
+void setSeparate(PID *pid) {
+	pid->pGain.temp = floor(pid->p);
+	pid->iGain.temp = floor(pid->i);		
+	pid->dGain.temp = floor(pid->d);
 
-	pid.pGain.integerL = pid.pGain.temp;
-	pid.iGain.integerL = pid.iGain.temp;
-	pid.dGain.integerL = pid.dGain.temp;
+	pid->pGain.integerL = pid->pGain.temp;
+	pid->iGain.integerL = pid->iGain.temp;
+	pid->dGain.integerL = pid->dGain.temp;
 
-	pid.pGain.temp = (pid.p - pid.pGain.temp) * 10000;
-	pid.iGain.temp = (pid.i - pid.iGain.temp) * 10000;
-	pid.dGain.temp = (pid.d - pid.dGain.temp) * 10000;
+	pid->pGain.temp = (pid->p - pid->pGain.temp) * 10000;
+	pid->iGain.temp = (pid->i - pid->iGain.temp) * 10000;
+	pid->dGain.temp = (pid->d - pid->dGain.temp) * 10000;
 
-	pid.pGain.decimalL = (int)pid.pGain.temp & 0xff;
-	pid.iGain.decimalL = (int)pid.iGain.temp & 0xff;
-	pid.dGain.decimalL = (int)pid.dGain.temp & 0xff;
+	pid->pGain.decimalL = (int)pid->pGain.temp & 0xff;
+	pid->iGain.decimalL = (int)pid->iGain.temp & 0xff;
+	pid->dGain.decimalL = (int)pid->dGain.temp & 0xff;
 
-	pid.pGain.decimalH = (int)pid.pGain.temp >> 8;
-	pid.iGain.decimalH = (int)pid.iGain.temp >> 8;
-	pid.dGain.decimalH = (int)pid.dGain.temp >> 8;
+	pid->pGain.decimalH = (int)pid->pGain.temp >> 8;
+	pid->iGain.decimalH = (int)pid->iGain.temp >> 8;
+	pid->dGain.decimalH = (int)pid->dGain.temp >> 8;
 }

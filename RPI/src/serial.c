@@ -16,7 +16,7 @@ void serial_init(void)
 
     if (uart0_filestream == -1)
     {
-	printf("UART Not Found\n");
+	printf("Serial Not Found\n");
     }
 }
 

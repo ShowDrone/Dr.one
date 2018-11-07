@@ -29,13 +29,15 @@
 #include "main.h"
 
 // Declaration
+
 using namespace std;
-static void  INThandler(int sig);
-static void GPS_Init(loc_t *gps);	// GPS 초기화 함수
-static void IMU_Init(); // IMU 초기화 함수
-static void SONAR_Init(SONAR *sonar0, SONAR *sonar1); // 소나 초기화 함수
-static void MQTT_Init(); // MQTT 초기화 함수
-static void PI_Init();   // PI 세팅 초기화 함수
+void  INThandler(int sig);
+void GPS_Init(loc_t *gps);	// GPS 초기화 함수
+void IMU_Init(); // IMU 초기화 함수
+void SONAR_Init(SONAR *sonar0, SONAR *sonar1); // 소나 초기화 함수
+void MQTT_Init(); // MQTT 초기화 함수
+void PI_Init();   // PI 세팅 초기화 함수
+void I2C_Init();
 
 // 구조체 선언
 ANGLE pitch = {0,0,0,{0,0,0,0,0}};
@@ -48,14 +50,15 @@ PID   dc2   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc3   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   bl    = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
-uint8_t bldcSpeed = 0;		
+uint8_t bldcSpeed = 0;	
 
 RTIMU_DATA imuData;
+char *imuresult;
 RTIMUSettings *settings = new RTIMUSettings("RTIMULib");
-RTIMU *imu = RTIMU::createIMU(settings);		
+RTIMU *imu = RTIMU::createIMU(settings);
+			
 
 int main(int argc, char **argv) {
-	
 		
 	/* Initialize Variable */
 	float lidar_distance = 0;
@@ -67,35 +70,34 @@ int main(int argc, char **argv) {
 	float ref = 0;
 	int cnt = 0, tokcnt = 1;
 	bool sonarFlag = true;
-	RTIMU_DATA imuData;
-	char *imuresult;
 	LIDAR lidar;
 	
 	/* Initialize Object */
 	loc_t gps;
-	SONAR sonar0 = SONAR(SONAR_ID0);
-	SONAR sonar1 = SONAR(SONAR_ID1);
+	SONAR sonar0 = SONAR(I2C_ADDRESS_SONAR0);
+	SONAR sonar1 = SONAR(I2C_ADDRESS_SONAR1);
 	
 	/* Interrupt for EXIT */
 	signal(SIGINT, INThandler);
 		
-	/* Initialize all configured peripherals */
+	/* Initialize all configured peripherals */			    
+	PI_Init();
+	I2C_Init();	
 	SONAR_Init(&sonar0, &sonar1);		
-	IMU_Init();				    
-	PI_Init();					
-	GPS_Init(&gps);					
-	MQTT_Init();				
-	lidar.begin(0, 0x62);
+	IMU_Init();					
+	GPS_Init(&gps);				
+	lidar.begin(0, 0x62);			
+	MQTT_Init();		
+	printf("Mdan\r\n");
 	
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
 
 	while (1) {
-	
+		printf("Loop Check\r\n");
 	    // imu로 9축 데이터 읽어 오는 곳.
 		while(imu->IMURead()); 
 		imuData = imu->getIMUData();
-		
 		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
 		imuresult=(char *)RTMath::displayDegrees("",imuData.fusionPose);
 		imuresult=strtok(imuresult,":");
@@ -108,7 +110,7 @@ int main(int argc, char **argv) {
 		
 		imuresult=strtok(NULL,":");
 		imuresult=strtok(NULL,":");
-		yaw.y=atof(imuresult) + 180.; //yaw
+		//yaw.y=atof(imuresult) + 180.; //yaw
 		tokold = micros();
 
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
@@ -186,12 +188,12 @@ int main(int argc, char **argv) {
 	    
 
 		
-		if (MAIN_DEBUG == 1) {
+		if (MAIN_DEBUG == 1) {/*
 			printf("--------Data-------\n");
 			printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch, roll, yaw);
 			printf("Lidar: %3.3f\n", lidar_distance);
 			printf("GPS:   %3.3f %3.3f %3.3f\n", gps.latitude, gps.longitude, gps.altitude);
-			printf("--------END--------\n\n");
+			printf("--------END--------\n\n");*/
 		}
 
 		tok = micros();
@@ -248,7 +250,7 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-static void GPS_Init(loc_t *gps) {
+void GPS_Init(loc_t *gps) {
 	gps_init();
 	gps->latitude = 0;
 	gps->longitude = 0;
@@ -257,29 +259,34 @@ static void GPS_Init(loc_t *gps) {
 	gps->satellites = 0;
 }
 
-static void IMU_Init() {
+void IMU_Init() {
 	if ((imu==NULL) || (imu->IMUType()==RTIMU_TYPE_NULL)) {
 		printf("No IMU found\n");
 		//exit(1);
 	}
-	imu->IMUInit();
+	if(!imu->IMUInit()) {
+		printf("Imu Init Failed\r\n");
+	}
+	else {
+		printf("IMU Init Succeeded\r\n");
+	}
 	imu->setSlerpPower(0.02);
 	imu->setGyroEnable(true);
 	imu->setAccelEnable(true);
 	imu->setCompassEnable(true);
 }
 
-static void SONAR_Init(SONAR *sonar0, SONAR *sonar1) {
+void SONAR_Init(SONAR *sonar0, SONAR *sonar1) {
 	sonar0->distance = 0;
 	sonar1->distance = 0;
 }
 
-static void MQTT_Init() {
+void MQTT_Init() {
 	mq_init();
 	mq_start();
 }
 
-static void PI_Init() {
+void PI_Init() {
 	if (wiringPiSetup() == -1) {
 		if (MAIN_DEBUG == 1) {
 			printf("Failed to wiringPiSetup\n");
@@ -287,8 +294,11 @@ static void PI_Init() {
 	}	
 }
 
+void I2C_Init() {
 
-static void INThandler(int sig) {
+}
+
+void INThandler(int sig) {
 	gps_off();
 	mq_close();
 	exit(0);
