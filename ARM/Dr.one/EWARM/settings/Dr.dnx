@@ -9,7 +9,7 @@
         <stlinkResetStrategy>3</stlinkResetStrategy>
     </StLinkDriver>
     <DebugChecksum>
-        <Checksum>2181879265</Checksum>
+        <Checksum>3097756650</Checksum>
     </DebugChecksum>
     <Exceptions>
         <StopOnUncaught>_ 0</StopOnUncaught>
@@ -46,8 +46,8 @@
         <TimeStampPrescIndex>0</TimeStampPrescIndex>
         <TimeStampPrescData>0</TimeStampPrescData>
         <PcSampCYCTAP>1</PcSampCYCTAP>
-        <PcSampPOSTCNT>15</PcSampPOSTCNT>
-        <PcSampIndex>0</PcSampIndex>
+        <PcSampPOSTCNT>6</PcSampPOSTCNT>
+        <PcSampIndex>9</PcSampIndex>
         <DataLogMode>0</DataLogMode>
         <ITMportsEnable>1</ITMportsEnable>
         <ITMportsTermIO>1</ITMportsTermIO>

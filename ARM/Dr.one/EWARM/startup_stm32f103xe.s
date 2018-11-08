@@ -159,7 +159,7 @@ __vector_table
         PUBWEAK Reset_Handler
         SECTION .text:CODE:REORDER:NOROOT(2)
 Reset_Handler
-        LDR     R0, =SystemInit
+dwerwer           LDR     R0, =SystemInit
         BLX     R0
         LDR     R0, =__iar_program_start
         BX      R0

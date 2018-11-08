@@ -3642,6 +3642,7 @@ __weak void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 __weak void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
   /* Prevent unused argument(s) compilation warning */
+  
   UNUSED(hi2c);
 
   /* NOTE : This function should not be modified, when the callback is needed,
@@ -3658,6 +3659,7 @@ __weak void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *hi2c)
 __weak void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c)
 {
   /* Prevent unused argument(s) compilation warning */
+  printf("Hi\n");
   UNUSED(hi2c);
 
   /* NOTE : This function should not be modified, when the callback is needed,

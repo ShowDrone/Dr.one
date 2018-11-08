@@ -4,7 +4,13 @@
 
 "--fpu=None" 
 
+"-p" 
+
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\CONFIG\debugger\ST\STM32F103RE.ddf" 
+
 "--semihosting" 
+
+"--device=STM32F103RE" 
 
 "--drv_interface=SWD" 
 

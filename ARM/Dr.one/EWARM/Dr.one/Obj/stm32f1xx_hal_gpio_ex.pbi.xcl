@@ -1,17 +1,17 @@
-"C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_gpio_ex.c"
+"C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\Drivers\STM32F1xx_HAL_Driver\Src\stm32f1xx_hal_gpio_ex.c"
 -std=c11
 -ferror-limit=0
 -fbracket-depth=512
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Inc
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\EWARM/../Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\EWARM/../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/CMSIS/Device/ST/STM32F1xx/Include
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\EWARM/../Drivers/CMSIS/Device/ST/STM32F1xx/Include
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM/../Drivers/CMSIS/Include
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\EWARM/../Drivers/CMSIS/Include
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\CMSIS\Core\Include
 -I
@@ -21,15 +21,15 @@ C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\inc
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\inc\c
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Inc
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc\Legacy
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\Drivers\STM32F1xx_HAL_Driver\Inc\Legacy
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\CMSIS\Device\ST\STM32F1xx\Include
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\Drivers\CMSIS\Device\ST\STM32F1xx\Include
 -I
-C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\Drivers\CMSIS\Include
+C:\Users\seunghyun\Desktop\ARM 개발\Dr.one\Drivers\CMSIS\Include
 -I
 C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\CMSIS\Core\Include
 -I
@@ -289,8 +289,8 @@ C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.0\arm\CMSIS\DSP\Include
 -D__EDG_FLOAT128_ENABLING_POSSIBLE=0
 -DUSE_HAL_DRIVER=1
 -DSTM32F103xE=1
--D_DLIB_CONFIG_FILE_HEADER_NAME="C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 8.0\\arm\\INC\\c\\DLib_Config_Normal.h"
--D_DLIB_CONFIG_FILE_STRING="C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 8.0\\arm\\INC\\c\\DLib_Config_Normal.h"
+-D_DLIB_CONFIG_FILE_HEADER_NAME="C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 8.0\\arm\\INC\\c\\DLib_Config_Full.h"
+-D_DLIB_CONFIG_FILE_STRING="C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 8.0\\arm\\INC\\c\\DLib_Config_Full.h"
 -D__VERSION__="IAR ANSI C/C++ Compiler V8.22.1.15669/W32 for ARM"
 -D__ICCARM_OLD_DEFINED_VAARGS__=1
 -D__VA_STACK_ALIGN__=8
