@@ -73,10 +73,10 @@
 #define RT_A_GPIO_Port GPIOC
 #define RT_B_Pin GPIO_PIN_5
 #define RT_B_GPIO_Port GPIOC
-#define DC_C_PWM_Pin GPIO_PIN_10
-#define DC_C_PWM_GPIO_Port GPIOB
-#define DC_D_PWM_Pin GPIO_PIN_11
+#define DC_D_PWM_Pin GPIO_PIN_10
 #define DC_D_PWM_GPIO_Port GPIOB
+#define DC_C_PWM_Pin GPIO_PIN_11
+#define DC_C_PWM_GPIO_Port GPIOB
 #define DC_A_DIR_Pin GPIO_PIN_12
 #define DC_A_DIR_GPIO_Port GPIOB
 #define DC_B_DIR_Pin GPIO_PIN_13
@@ -120,8 +120,8 @@
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
 #define TXBUFFERSIZE                      7
-#define RXBUFFERSIZE                      20
-
+#define RXBUFFERSIZE                      5
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 typedef struct Ch
 {
    __IO uint16_t  newv;

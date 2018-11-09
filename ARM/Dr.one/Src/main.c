@@ -88,10 +88,10 @@ CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
 CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
 
 // pid0~3 = dc0~3
-PID pid0 = {1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
-PID pid1 = {1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid2 = {1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid3 = {1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid0 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
+PID pid1 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid2 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid3 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
 /* USER CODE END PV */
 
@@ -123,9 +123,10 @@ float getMvAverage(__IO float *ch, __IO float value, int len);
 void setPidBLDC (PID pid, BL bl);
 // dc ???? pid ??? ???
 void setPidDC (PID *pid, CH *ch, DC *dc);
+float map(float x, float in_min, float in_max, float out_min, float out_max);
 
 static int timer2Tick = 0;
-float targetDeg = 0;
+float targetDeg = 0.;
   
 uint8_t aTxBuffer[] = "abcdefg";
 uint8_t aRxBuffer[RXBUFFERSIZE];
@@ -179,18 +180,19 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // BLDC Motor  490 Hz period  pulse width 0 ~ 2040
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);          // Bldc Motor 0
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);          // Bldc Motor 1
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);             // Bldc Motor 0
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);             // Bldc Motor 1
+  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);           // Bldc Motor 1
   HAL_TIM_Base_Start_IT(&htim1);
   
-  // DC Motor 490Hz Period       pulse width 0 ~ 2040
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);          // DC Motor A
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);          // DC Motor B
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);          // DC Motor C
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);          // DC Motor D
+  // DC Motor 490Hz Period   pulse width 0 ~ 1020
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);             // DC Motor A
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);             // DC Motor B
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor C
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);             // DC Motor D
   
   // ESC Switch 490Hz Period     pulse width 0 ~ 2040
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);          // ESC Switch
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
   
   // InputCaputre 0 ~ 7200 
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);           // Encoder A
@@ -225,39 +227,17 @@ int main(void)
   {
   /* USER CODE END WHILE */
     
-    
   /* USER CODE BEGIN 3 */
     
     
-      //HAL_I2C_Slave_Receive_DMA(&hi2c1, rxData, rxLength);
-      //for(int i=0;i<rxLength;i++)
-       //   printf("%d  ",rxData[i]);
-      //printf("\n");
-      
-    /*
-     if (HAL_I2C_Slave_Receive_DMA(&hi2c1, rxData, rxLength) != HAL_OK)
-     {
-        Error_Handler();        
-     }
-    else
-    {
-    }
+  if(HAL_I2C_Slave_Receive_IT(&hi2c1, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
+  {
+    printf("set slave Receive IT Failed\n");
+     _Error_Handler(__FILE__, __LINE__);
+  }
     
-    if (HAL_I2C_Slave_Transmit_DMA(&hi2c1, txData, txLength) != HAL_OK)
-     {
-        Error_Handler();        
-     }
-    else
-    {
-      printf("tx OK\n");
-    }    
-  */
-    
-    
-  // ch0~3?? ??????? ???ワ? ??????? ????? ???????, ??? ??? ????? ??????? ???
     if(ch0.status == 1) 
     {
-      // ?????????? ????? ???ワ? ??????? ???, ??? ?? ????
         getMvAverage(ch0.data, ch0.width, 3); 
         ch0.status = 0;
     }
@@ -278,55 +258,56 @@ int main(void)
         ch3.status = 0;
     }
     
-    //??????? ??レ? 7200 ????? 360?? ?????? ???
+    
+    
     ch0.angle = ch0.width*0.05;     
     ch1.angle = ch1.width*0.05;
     ch2.angle = ch2.width*0.05;  
     ch3.angle = ch3.width*0.05;
-
-   /* printf("ch0: %.3f\t",  ch0.angle); / printf("ch1: %.3f\t",  ch1.angle);  
-    printf("ch2: %.3f\t",  ch2.angle);   printf("ch3: %.3f\t",  ch3.angle); 
-    printf("\n");*/
     
     
-   // pid Control
+    //targetDeg = 300.;
+    
+    // pid Control
     setPidDC(&pid0, &ch3, &dc0);
     setPidDC(&pid1, &ch2, &dc1);
     setPidDC(&pid2, &ch1, &dc2);
     setPidDC(&pid3, &ch0, &dc3);
-    /* DC ???? ???? ????  */
+       
+    /* DC  */
     // DC Motor Directrion, GPIO_PIN_RESET = inside, GPIO_PIN_SET = outside
-   
-    
-    if(pid0.control > 0) 
-        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);      
+
+    if(dc0.setValue > 0)
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
     else
         HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
-    if(pid1.control > 0) 
+    if(dc1.setValue > 0) 
         HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
     else
         HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);    
-    if(pid2.control > 0) 
+    if(dc2.setValue > 0) 
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
     else
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
-    if(pid3.control > 0) 
+    if(dc3.setValue > 0) 
         HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
     else
         HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
-  
-    // TODO abs ??? ????????. 
-
+   /* 
     TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
     TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
-    TIM2 -> CCR3 = abs(dc2.setValue); // DC_C
-    TIM2 -> CCR4 = abs(dc3.setValue); // DC_D 
-
-    printf("A:\t"); printf("%d\t\t",dc0.setValue); printf("%f\n", ch3.angle);
-    printf("B:\t"); printf("%d\t\t",dc1.setValue); printf("%f\n", ch2.angle);
-    printf("C:\t"); printf("%d\t\t",dc2.setValue); printf("%f\n", ch1.angle);
-    printf("D:\t"); printf("%d\t\t",dc3.setValue); printf("%f\n\n", ch0.angle);
-        
+    TIM2 -> CCR4 = abs(dc2.setValue); // DC_C
+    TIM2 -> CCR3 = abs(dc3.setValue); // DC_D 
+   
+    printf("%d\t",  dc0.setValue);   printf("%d\t",  dc1.setValue);  
+    printf("%d\t",  dc2.setValue);   printf("%d\t",  dc3.setValue); 
+    printf("\n");
+    
+    printf("A:\t"); printf("%d\t",dc0.setValue); printf("%.3f\n", ch3.angle);
+    printf("B:\t"); printf("%d\t",dc1.setValue); printf("%.3f\n", ch2.angle);
+    printf("C:\t"); printf("%d\t",dc2.setValue); printf("%.3f\n", ch1.angle);
+    printf("D:\t"); printf("%d\t",dc3.setValue); printf("%.3f\n\n", ch0.angle); 
+   */ 
   }
 }
 
@@ -538,7 +519,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 2039; // 2040
+  htim1.Init.Period = 2040; // 2040
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -570,27 +551,21 @@ static void MX_TIM1_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+  
 
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 1500;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_SET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
-
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -607,9 +582,9 @@ static void MX_TIM2_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
+  htim2.Init.Prescaler = 287; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2039;
+  htim2.Init.Period = 509;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
@@ -712,9 +687,9 @@ static void MX_TIM4_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
+  htim4.Init.Prescaler = 287; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 2039;
+  htim4.Init.Period = 509;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
@@ -834,29 +809,38 @@ void setPidBLDC(PID pid, BL bl)
   pid.i = (pid.i < -10.) ? -10. : pid.i;
   pid.d = pid.kd * (pid.de / pid.dt);
   pid.control = pid.p + pid.i + pid.d;
-  pid.control = (pid.control > 2040.) ? 2040. : pid.control;
-  pid.control = (pid.control < -2040.) ? -2040. : pid.control;
+  pid.control = (pid.control > 1020.) ? 1020. : pid.control;
+  pid.control = (pid.control < -1020.) ? -1020. : pid.control;
   pid.err_prev = pid.err;
 }
 
 
 void setPidDC(PID *pid, CH *ch, DC *dc)
 {
-  pid->err = targetDeg - ch->angle;        // ??? ?? - ???? ?? 
-  pid->de = pid->err - pid->err_prev;        //  ???? ???? ????
-  pid->dt = 0.001;                                  // ???? ??? 1000Hz
-  pid->p = pid->err * pid->kp;                    // ???? * p????
-  pid->i = pid->i + pid->err * pid->dt * pid->ki;// i ???? ????
   
-  // ???????? ???? ?? ┬???? ??????? ???? max, min ??? ????
-  pid->i = (pid->i > 100.) ? 100. : pid->i;      
-  pid->i = (pid->i < -100.) ? -100. : pid->i;
-  pid->d = pid->kd * (pid->de / pid->dt);      // d ???
-  pid->control = pid->p + pid->i + pid->d;     // ???? ???? ????? pid ????? ????
+  float temp = targetDeg - ch->angle;
+  if(temp < -180) {
+      pid->err = 360 + temp;
+  }
+  else if ( temp >= 180) {
+      pid->err = -360 + temp;
+  }
+  else {
+      pid->err = temp;
+  }
+            
   
-  // pid ??? ???? +-2040???? ??????? ???
-  pid->control = (pid->control > 2040.) ? 2040. : pid->control;           
-  pid->control = (pid->control < -2040.) ? -2040. : pid->control;     
+  pid->de = pid->err - pid->err_prev;        
+  pid->dt = 0.001;                                 
+  pid->p = pid->err * pid->kp;                    
+  pid->i += pid->err * pid->dt * pid->ki;
+  pid->i = (pid->i > 20.) ? 20. : pid->i;      
+  pid->i = (pid->i < -20.) ? -20. : pid->i;
+  pid->d = pid->kd * (pid->de / pid->dt);      
+  pid->control = pid->p + pid->i + pid->d;       
+ 
+  //printf("p: %.2f\t", pid->p); printf("i: %.2f\t", pid->i); printf("d: %.2f\t", pid->d);  printf("pid: %.3f\n", pid->control);
+  pid->control = constrain(pid->control,-510,510);
   dc->setValue = pid->control;
   pid->err_prev = pid->err;
 }
@@ -946,6 +930,11 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
             }      
       }
   }
+}
+
+float map(float x, float in_min, float in_max, float out_min, float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 // ?????? ??? ???? ???? ???, TIM 1a?ョ? RISING, FALLING?? ??????? ???? ???
