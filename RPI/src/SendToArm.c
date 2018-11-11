@@ -3,15 +3,13 @@
 
 RPI rpi = { 0 };
 
-#define STX 'A'
-#define ETX 'B'
 int slave_id;
 uint8_t checkSum_Byte = 0;     
 uint8_t ReadyToFly_Data[READY_TO_FLY_BYTE];
 uint8_t Flying_Data[READY_TO_FLY_BYTE];
 uint8_t checkSum(uint8_t *data, uint8_t len );
 bool takeoff = 0;
-char txbuf[1024];
+char txbuf[1024] = {};
 int wlen;
 int set_interface_attribs(int slave_id, int speed)
 {
@@ -66,7 +64,8 @@ int ARM_Init(int _id) {
 
  
 void send_Arm_ReadyToFly() {
-	 sprintf((char*)txbuf, "%c%c", STX, ETX);
+	 //sprintf((char*)txbuf, "%c%c", STX, ETX);
+	 sprintf((char*)txbuf, "%c%c%c%c%c%c%c%c%c", "A","B","C","D","E","F","G","H","I");
 	 wlen = write(slave_id, txbuf, strlen(txbuf));
 	    if (wlen != strlen(txbuf)) {
 	        printf("Error from write: %d, %d\n", wlen, errno);
