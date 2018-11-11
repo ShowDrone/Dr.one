@@ -37,13 +37,14 @@ void IMU_Init(); // IMU 초기화 함수
 void SONAR_Init(SONAR *sonar0, SONAR *sonar1); // 소나 초기화 함수
 void MQTT_Init(); // MQTT 초기화 함수
 void PI_Init();   // PI 세팅 초기화 함수
+void SERVO_Init();
 void setSeparate(ANGLE *axis);
 
 // 구조체 선언
 ANGLE pitch = {0,0,0,{0,0,0,0,0}};
 ANGLE roll  = {0,0,0,{0,0,0,0,0}};				
 ANGLE yaw   = {0,0,0,{0,0,0,0,0}};			
-SERVO servo = {0,0};							
+SERVO servo = {15,0};							
 PID   dc0   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc1   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc2   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
@@ -86,6 +87,8 @@ int main(int argc, char **argv) {
 	GPS_Init(&gps);				
 	MQTT_Init();		
 	SONAR_Init(&sonar0, &sonar1);			
+	SERVO_Init();
+	ARM_Init(0x30);
 	lidar.begin(0, 0x62);		
 	printf("Main\r\n");
 	
@@ -93,8 +96,8 @@ int main(int argc, char **argv) {
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
 
 	while (1) {
-	    // imu로 9축 데이터 읽어 오는 곳.
-
+		send_Arm_ReadyToFly();
+	   	// imu로 9축 데이터 읽어 오는 곳
 		while(imu->IMURead()); 
 		imuData = imu->getIMUData();
 		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
@@ -111,9 +114,8 @@ int main(int argc, char **argv) {
 		imuresult=strtok(NULL,":");
 		yaw.y=atof(imuresult) + 180.; //yaw
 		tokold = micros();
-		printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch.y, roll.y, yaw.y);
+		//printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch.y, roll.y, yaw.y);
 
-		fflush(stdout);
 		
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
 		// 소수점 뗴기
@@ -122,9 +124,7 @@ int main(int argc, char **argv) {
 		setSeparate(&pitch);
 		setSeparate(&yaw); 		
 
-		printf("%d %d %d %d\r\n", roll.data.integerL, roll.data.integerH, roll.data.decimalL, roll.data.decimalH);
-
-		fflush(stdout);
+		softPwmWrite(SERVO_LANDING, servo.y);
 
 
 		//lidar_distance = lidar.distance();
@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
 			sprintf(mqbuf, "%i,%i\r", sonar1.id, sonar1.distance);
 			mq_send("pidrone/SONAR", mqbuf);
 			sprintf(mqbuf, "%lf,%lf,%lf,%i,%lf,%i\r", gps.latitude, gps.longitude, gps.altitude, gps.satellites, gps.speed*1.8);
-			printf("%lf %lf %lf \n", gps.latitude, gps.longitude, gps.altitude);
+			//printf("%lf %lf %lf \n", gps.latitude, gps.longitude, gps.altitude);
 			mq_send("pidrone/GPS", mqbuf);
 			sprintf(mqbuf,"%s\r",RTMath::displayDegrees("",imuData.fusionPose));
 			mq_send("pidrone/IMU",mqbuf);
@@ -269,12 +269,16 @@ void PI_Init() {
 	}	
 }
 
+void SERVO_Init() {
+	softPwmCreate(SERVO_LANDING,0,500);
+}
+
 
 void setSeparate(ANGLE *axis) {
 	axis->data.temp = floor(axis->y);
-	if(abs(axis->data.temp) > 255) {
-		axis->data.integerL = 255;
-		axis->data.integerH = axis->data.temp-255;
+	if(abs(axis->data.temp) > 254) {
+		axis->data.integerL = 254;
+		axis->data.integerH = axis->data.temp-254;
 	}
 	else {
 		axis->data.integerL = axis->data.temp;

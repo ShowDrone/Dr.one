@@ -1,9 +1,8 @@
-
 #include "Mqtt.h"
 #define MQTT_DEBUG 1 // MQTT
 
 char *user = "pi";      // Raspberry Pi ID
-char *pw = "rkswlql1"; // Raspberry Pi Password
+char *pw = "vkdlemfhs"; // Raspberry Pi Password
 char *mqbuf = (char *)malloc(70 * sizeof(char));
 void setSeparate(PID *pid);
 
@@ -137,14 +136,12 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 			printf("dc3 max=%f,min=%f,tmax=%f,tmin=%f\r\n", dc3.max, dc3.min, dc3.tmax, dc3.tmin);
 			sprintf(mqbuf, "%u,%f,%f,%f,%f\r\n", dc3.id, dc3.max, dc3.min, dc3.tmax, dc3.tmin);
 			mq_send("pidrone/FG", mqbuf);
-
 			printf("bl0 max=%i,min=%i,tmax=%f,tmin=%f\r\n", bl0.max, bl0.min, bl0.tmax, bl0.tmin);
 			sprintf(mqbuf, "%u,%i,%i,%f,%f\r\n", bl0.id, bl0.max, bl0.min, bl0.tmax, bl0.tmin);
 			mq_send("pidrone/FG", mqbuf);
 			printf("bl1 max=%i,min=%i,tmax=%f,tmin=%f\r\n", bl1.max, bl1.min, bl1.tmax, bl1.tmin);
 			sprintf(mqbuf, "%u,%i,%i,%f,%f\r\n", bl1.id, bl1.max, bl1.min, bl1.tmax, bl1.tmin);
 			mq_send("pidrone/FG", mqbuf);
-
 			printf("cm0 max=%f,min=%f,tmax=%f,tmin=%f\r\n", cm0.max, cm0.min, cm0.tmax, cm0.tmin);
 			sprintf(mqbuf, "%u,%f,%f,%f,%f\r\n", cm0.id, cm0.max, cm0.min, cm0.tmax, cm0.tmin);
 			mq_send("pidrone/FG", mqbuf);
@@ -334,8 +331,9 @@ void mq_init() {
 	mosquitto_username_pw_set(mosq, user, pw);
 	mosquitto_message_callback_set(mosq, message_callback);
 	if (mosquitto_connect(mosq, "168.188.40.28", 1883, 60)) {
-		printf("Mqtt connect error\r\n");;
+		printf("Mqtt connect error\r\n");
 	}
+	printf("Mqtt connect Ok\r\n");
 	mosquitto_subscribe(mosq, NULL, "pidrone/CMD/#", 0);
 	mosquitto_subscribe(mosq, NULL, "pidrone/PID/#", 0);
 }
@@ -347,7 +345,7 @@ void mq_start() {
 		//usleep(20000);
 		mosquitto_reconnect(mosq);
 	}
-	printf("Mqtt Connection Ok\r\n");
+	printf("Mqtt Start Ok\r\n");
 }
 
 int mq_send(const char *topic, const char *msg) {

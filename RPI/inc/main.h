@@ -5,12 +5,12 @@
 /* Includes ------------------------------------------------------------------*/    
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream>
 #include <wiringPi.h>
 #include <math.h>
 #include <RTIMULib.h>
 #include <mosquitto.h>
 #include <signal.h>
+#include <softPwm.h>
 #include "Sonar.h"
 #include "gps.h"
 #include "Mqtt.h"
@@ -26,6 +26,7 @@
 #define I2C_ADDRESS_SONAR0 0x71
 #define I2C_ADDRESS_SONAR1 0x72
 #define I2C_ADDRESS_MPU9150 0x68
+#define SERVO_LANDING 1
 
 
 /* Private Declaration -------------------------------------------------------*/
