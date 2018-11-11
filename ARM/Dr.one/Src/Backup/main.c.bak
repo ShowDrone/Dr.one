@@ -41,69 +41,123 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "rs485.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 
-I2C_HandleTypeDef hi2c1;
-DMA_HandleTypeDef hdma_i2c1_rx;
-DMA_HandleTypeDef hdma_i2c1_tx;
-
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
+UART_HandleTypeDef huart3;
+
 /* USER CODE BEGIN PV */
+
+#define PIDGAINBUFFER 50
+
 /* Private variables ---------------------------------------------------------*/
 
 
-DC dc0 = {DC_A_DIR_GPIO_Port, DC_A_PWM_GPIO_Port, DC_A_DIR_Pin, DC_A_PWM_Pin};
-DC dc1 = {DC_B_DIR_GPIO_Port, DC_B_PWM_GPIO_Port, DC_B_DIR_Pin, DC_B_PWM_Pin};
-DC dc2 = {DC_C_DIR_GPIO_Port, DC_C_PWM_GPIO_Port, DC_C_DIR_Pin, DC_C_PWM_Pin};
-DC dc3 = {DC_D_DIR_GPIO_Port, DC_D_PWM_GPIO_Port, DC_D_DIR_Pin, DC_D_PWM_Pin};
+// 
+/*
+DC Pin Number 0~3 = A~D
+     D
+    
+ C |  | C
+    
+     B
+  []
+*/
+DC dc0 = {DC_A_DIR_GPIO_Port, DC_A_PWM_GPIO_Port, DC_A_DIR_Pin, DC_A_PWM_Pin , 0}; 
+DC dc1 = {DC_B_DIR_GPIO_Port, DC_B_PWM_GPIO_Port, DC_B_DIR_Pin, DC_B_PWM_Pin, 0};
+DC dc2 = {DC_C_DIR_GPIO_Port, DC_C_PWM_GPIO_Port, DC_C_DIR_Pin, DC_C_PWM_Pin, 0};
+DC dc3 = {DC_D_DIR_GPIO_Port, DC_D_PWM_GPIO_Port, DC_D_DIR_Pin, DC_D_PWM_Pin, 0};
 
-BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin};
-BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin};
+// BLDC 
+BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin}; 
+BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin}; 
 
-CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0};
+//  ch0~3 = dc0~3
+CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0};  // newv, oldv, width, angle, data[3], status
+CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0};     
 CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
 CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
-CH ch4 = {0, 0, 0, 0, {0, 0, 0}, 0};
 
-uint8_t rxData[rxLength] = {0, 1, 2};
-uint8_t txData[txLength] = {0, 1, 2 };
-
+// pid0~3 = dc0~3
+PID pid0 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
+PID pid1 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid2 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid3 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_ADC2_Init(void);
-static void MX_NVIC_Init(void);
+static void MX_USART3_UART_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
-                                
+void Communication_Init();                               
+void SendData();   
+int CheckCmd();
+int IsValid(uint8_t value);
+int CheckID(uint8_t * idStr);
+void ProcessInput();
+void  RequestRecv();
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-static void setAngle();
+//  Falling Edge<-> Rising Edge
 static void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity);
 float getMvAverage(__IO float *ch, __IO float value, int len);
+void setPidBLDC (PID pid, BL bl);
+void setPidDC (PID *pid, CH *ch, DC *dc);
+void sepPidGain(PID *pid, int bufCount);
+void sumPidGain(PID *pid); 
+void entPidGain();
+float map(float x, float in_min, float in_max, float out_min, float out_max);
+void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
+static int timer2Tick = 0;
+float targetDeg = 0.;
+int8_t startPidGain = 1;
 
+uint8_t aTxBuffer[] = "abcdefg";
+uint8_t aRxBuffer[4];
+uint8_t setPidGainBuf[64];
+int ucReceive_Event = 0;
+int reqReceived = 0;
+int dataReady = 0;
+static int led = 0;
+uint8_t myChar = 0;
+int lastByte = 0;
+tUart data;
+int sentBufferEmpty = 1;
+int transferErrorCount = 0;
+int writeErrorCount = 0;
+int readErrorCount = 0;
+static int count = 0;
+uint8_t  ucpRx1Buffer  [RX1BUFFERSIZE];
+uint8_t cmdStr[266];
+uint8_t cmdStrPrefix[256] = "GET VALUE ";
+uint8_t cmdLen = RX1BUFFERSIZE;
+uint32_t errCode[256];
+static int idLen=0;
+static uint8_t data_element;
+int requestOkay = 0;
+uint32_t addrData;
+uint8_t addrCrc; 
+int readCallback;
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -140,44 +194,51 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_ADC1_Init();
-  MX_I2C1_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_ADC2_Init();
-
-  /* Initialize interrupts */
-  MX_NVIC_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
-   // 50Hz Period, Pulse Width1ms[Min] 2ms[max]
-  //HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-  //HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+  // BLDC Motor  490 Hz period  pulse width 0 ~ 2040
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);             // Bldc Motor 0
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);             // Bldc Motor 1
+  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);           // Bldc Motor 1
+  HAL_TIM_Base_Start_IT(&htim1);
   
-   printf("Start1\n");
-   HAL_Delay(500);
+  // DC Motor 490Hz Period   pulse width 0 ~ 1020
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);             // DC Motor A
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);             // DC Motor B
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor C
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);             // DC Motor D
   
-   
-  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);  
-  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);
-  //HAL_DMA_Start_IT(&hdma_i2c1_rx, (uint32_t)Buffer_Src, (uint32_t)Buffer_Dest, 10);
- // HAL_DMA_Start_IT(&hdma_i2c1_tx, (uint32_t) Buffer_Src, (uint32_t)Buffer_Dest, 10);                 
-  // 2000ÀÌ ¸Æ½Ã¸Ø ½ÅÈ£
-  // 1000ÀÌ ¹Ì´Ï¸Ø ½ÅÈ£
+  // ESC Switch 490Hz Period     pulse width 0 ~ 2040
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
   
-  TIM4->CCR3 = 1000;  
-  HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
-  printf("Start\n");
-  HAL_Delay(500);
+  // InputCaputre 0 ~ 7200 
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);           // Encoder A
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);           // Encoder B
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
+  
+  
+  
+  Communication_Init();
+  
+  
+  __HAL_UART_DISABLE_IT(&huart3, UART_IT_RXNE);
+  __HAL_UART_DISABLE_IT(&huart3, UART_IT_TC);
+  
+ 
+  RequestRecv();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  
   
   while (1) 
   {
@@ -186,83 +247,114 @@ int main(void)
   /* USER CODE BEGIN 3 */
     
     
-    
-      HAL_I2C_Slave_Receive_DMA(&hi2c1, rxData, rxLength);
-      for(int i=0;i<rxLength;i++)
-          printf("%d  ",rxData[i]);
-      printf("\n");
+    if(dataReady == 0) {
+        ProcessInput();     
+      }
+      else
+        __NOP();
       
-    /*if (HAL_I2C_Slave_Receive_DMA(&hi2c1, rxData, rxLength) != HAL_OK)
-     {
-        Error_Handler();        
-     }
-    else
-    {
+    if( reqReceived == 1 || 1) {
+    
+      if(sentBufferEmpty == 1 && dataReady == 1) {
+        dataReady = 0;
+        
+        //HAL_GPIO_WritePin(RS485_ENABLE_PORT, RS485_DE_PIN, GPIO_PIN_SET);
+        //HAL_GPIO_WritePin(RS485_ENABLE_PORT, RS485_RE_PIN, GPIO_PIN_SET);
+        __HAL_UART_DISABLE_IT(&huart3, UART_IT_RXNE);
+        //HAL_Delay(10);
+        SendData();
+//          HAL_Delay(10);
+        
+      } else if (sentBufferEmpty && dataReady == 0 ) {
+        
+        
+        __HAL_UART_DISABLE_IT(&huart3, UART_IT_TC);
+        USART_ClearITPendingBit(&huart3, UART_IT_TC);
+        
+        RequestRecv();
+      }
+         
     }
     
-    if (HAL_I2C_Slave_Transmit_DMA(&hi2c1, txData, txLength) != HAL_OK)
-     {
-        Error_Handler();        
-     }
-    else
+    
+    
+   
+   count ++;
+    
+
+    
+    if(ch0.status == 1) 
     {
-      printf("tx OK\n");
-    }    
-  */
-      
-    
-    
+        getMvAverage(ch0.data, ch0.width, 3); 
+        ch0.status = 0;
+    }
     if(ch1.status == 1)
     {
         getMvAverage(ch1.data, ch1.width, 3);
         ch1.status = 0;
     }
     
-    if(ch2.status == 2)
+    if(ch2.status == 1)
     {
-        getMvAverage(ch2.data, ch2.width, 3);
+        getMvAverage(ch2.data, ch2.width, 3); 
         ch2.status = 0;
     }
-    
-    
-    if(ch3.status == 3)
+    if(ch3.status == 1)
     {
         getMvAverage(ch3.data, ch3.width, 3);
         ch3.status = 0;
     }
     
-    if(ch4.status == 4)
-    {
-        getMvAverage(ch4.data, ch4.width, 3);
-        ch4.status = 0;
-    }
     
-    ch1.angle = ch1.width*0.05;  
-    ch2.angle = ch2.width*0.05;
-    ch3.angle = ch3.width*0.05;  
-    ch4.angle = ch4.width*0.05;
     
+    ch0.angle = ch0.width*0.05;     
+    ch1.angle = ch1.width*0.05;
+    ch2.angle = ch2.width*0.05;  
+    ch3.angle = ch3.width*0.05;
+    
+    
+    //targetDeg = 300.;
+    
+    // pid Control
+    setPidDC(&pid0, &ch3, &dc0);
+    setPidDC(&pid1, &ch2, &dc1);
+    setPidDC(&pid2, &ch1, &dc2);
+    setPidDC(&pid3, &ch0, &dc3);
+       
+    /* DC  */
+    // DC Motor Directrion, GPIO_PIN_RESET = inside, GPIO_PIN_SET = outside
 
-    printf("ch1: %.3f\t",  ch1.angle);   printf("ch2: %.3f\t",  ch2.angle);  
-    printf("ch3: %.3f\t",  ch3.angle);   printf("ch4: %.3f\t",  ch4.angle);   
+    if(dc0.setValue > 0)
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
+    if(dc1.setValue > 0) 
+        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);    
+    if(dc2.setValue > 0) 
+        HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
+    if(dc3.setValue > 0) 
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
+   /* 
+    TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
+    TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
+    TIM2 -> CCR4 = abs(dc2.setValue); // DC_C
+    TIM2 -> CCR3 = abs(dc3.setValue); // DC_D 
+   
+    printf("%d\t",  dc0.setValue);   printf("%d\t",  dc1.setValue);  
+    printf("%d\t",  dc2.setValue);   printf("%d\t",  dc3.setValue); 
     printf("\n");
     
-    HAL_Delay(100);
-
-/*
-    HAL_GPIO_TogglePin(GPIOA, LED_Pin);    
-    char keyEvent[4];
-    gets(keyEvent, sizeof(keyEvent), stdin);
-    keyEvent[strlen(keyEvent)-1] = '\0';
-    printf("%s\n", keyEvent);  
-*/    
-    /*printf("Hello Loop\n");
-    HAL_GPIO_WritePin(dc0.dirPort,  dc0.dirID, GPIO_PIN_RESET);
-    TIM4->CCR3 = 200;
-    HAL_Delay(100);   
-    HAL_GPIO_WritePin(dc0.dirPort,  dc0.dirID, GPIO_PIN_SET);
-    TIM4->CCR3 = 3600; */       
-    
+    printf("A:\t"); printf("%d\t",dc0.setValue); printf("%.3f\n", ch3.angle);
+    printf("B:\t"); printf("%d\t",dc1.setValue); printf("%.3f\n", ch2.angle);
+    printf("C:\t"); printf("%d\t",dc2.setValue); printf("%.3f\n", ch1.angle);
+    printf("D:\t"); printf("%d\t",dc3.setValue); printf("%.3f\n\n", ch0.angle); 
+   */ 
   }
   /* USER CODE END 3 */
 
@@ -324,20 +416,6 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}
-
-/**
-  * @brief NVIC Configuration.
-  * @retval None
-  */
-static void MX_NVIC_Init(void)
-{
-  /* I2C1_EV_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
-  /* I2C1_ER_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(I2C1_ER_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(I2C1_ER_IRQn);
 }
 
 /* ADC1 init function */
@@ -430,29 +508,6 @@ static void MX_ADC2_Init(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-}
-
-/* I2C1 init function */
-static void MX_I2C1_Init(void)
-{
-
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0x54;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_ENABLE;
- 
-  //HAL_I2C_MODE_SLAVE
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-  
-  
 }
 
 /* TIM1 init function */
@@ -674,21 +729,23 @@ static void MX_TIM4_Init(void)
 
 }
 
-/** 
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void) 
+/* USART3 init function */
+static void MX_USART3_UART_Init(void)
 {
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
 
-  /* DMA interrupt init */
-  /* DMA1_Channel6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
-  /* DMA1_Channel7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
 }
 
 /** Configure pins as 
@@ -751,107 +808,433 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-static void setAngle()
+
+// TODO: targetDeg ??? rpi???? ???? YAW???? ?????????.
+void setPidBLDC(PID pid, BL bl)
 {
+  pid.err; //= targetDeg - ch.angle;
+  pid.de = pid.err - pid.err_prev;
+  pid.dt = 0.001;
+  pid.p = pid.err * pid.kp;
+  pid.i = pid.i + pid.err * pid.dt * pid.ki;
+  pid.i = (pid.i > 10.) ? 10. : pid.i;
+  pid.i = (pid.i < -10.) ? -10. : pid.i;
+  pid.d = pid.kd * (pid.de / pid.dt);
+  pid.control = pid.p + pid.i + pid.d;
+  pid.control = (pid.control > 1020.) ? 1020. : pid.control;
+  pid.control = (pid.control < -1020.) ? -1020. : pid.control;
+  pid.err_prev = pid.err;
 }
 
-                   
-void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c)
+
+void setPidDC(PID *pid, CH *ch, DC *dc)
 {
+  
+  float temp = targetDeg - ch->angle;
+  if(temp < -180) {
+      pid->err = 360 + temp;
+  }
+  else if ( temp >= 180) {
+      pid->err = -360 + temp;
+  }
+  else {
+      pid->err = temp;
+  }
+  
+  pid->de = pid->err - pid->err_prev;        
+  pid->dt = 0.001;                                 
+  pid->p = pid->err * pid->kp;                    
+  pid->i += pid->err * pid->dt * pid->ki;
+  pid->i = (pid->i > 20.) ? 20. : pid->i;      
+  pid->i = (pid->i < -20.) ? -20. : pid->i;
+  pid->d = pid->kd * (pid->de / pid->dt);      
+  pid->control = pid->p + pid->i + pid->d;       
+ 
+  //printf("p: %.2f\t", pid->p); printf("i: %.2f\t", pid->i); printf("d: %.2f\t", pid->d);  printf("pid: %.3f\n", pid->control);
+  pid->control = constrain(pid->control,-510,510);
+  dc->setValue = pid->control;
+  pid->err_prev = pid->err;
+}
+
+void sepPidGain(PID *pid, int bufCount)
+{
+  pid->kp_integer  = setPidGainBuf[bufCount+1];  
+  pid->kp_decimalL = setPidGainBuf[bufCount+2];  
+  pid->kp_decimalH = setPidGainBuf[bufCount+3];  
+  pid->ki_integer  = setPidGainBuf[bufCount+4];   
+  pid->ki_decimalL = setPidGainBuf[bufCount+5];  
+  pid->ki_decimalH = setPidGainBuf[bufCount+6];  
+  pid->kd_integer  = setPidGainBuf[bufCount+7];  
+  pid->kd_decimalL = setPidGainBuf[bufCount+8];  
+  pid->kd_decimalH = setPidGainBuf[bufCount+9];  
+}
+
+void sumPidGain(PID *pid)
+{
+  pid->kp =  pid->kp_integer;
+  pid->kp += ((pid->kp_decimalH << 8) & (pid->kp_decimalL)) * 0.0001;
+  
+  pid->ki =  pid->ki_integer;
+  pid->ki += ((pid->ki_decimalH << 8) & (pid->ki_decimalL)) * 0.0001;
+  
+  pid->kd =  pid->kd_integer;
+  pid->kd += ((pid->kd_decimalH << 8) & (pid->kd_decimalL)) * 0.0001;
+}
+
+void entPidGain()
+{
+    int sum = 0;
+    for (int i=0;i<PIDGAINBUFFER-1;i++)
+    {
+      sum += setPidGainBuf[i];
+    }
+    sum = (sum & 0xff) + (sum >> 8);
+    
+    sum = ~sum;
+    
+    // sum == 1 ok, sum != 1 not ok
+    
+    setPidGainBuf[PIDGAINBUFFER-1];
+    
+    sepPidGain(&pid0, 0);
+    sepPidGain(&pid1, 8);
+    sepPidGain(&pid2, 17);
+    sepPidGain(&pid3, 26);
+    
+    sumPidGain(&pid0);
+    sumPidGain(&pid1);
+    sumPidGain(&pid2);
+    sumPidGain(&pid3);
+  
+}
+        
+void Communication_Init() {
+  int i;
+  data.Flag = 0;
+  data.rx_point_head = data.rx_point_tail = data.tx_point_head = data.tx_point_tail = 0;
+
+  for(i=0; i< RBUF_SIZE; i++) {
+    data.RxBuf[i] = 0;
+    data.TxBuf[i] = 0;
+  }
+  
+  for(i=0; i<RX1BUFFERSIZE; i++)
+    ucpRx1Buffer[i] = 'z';
+    
+  data.cmdIndex = 0;
+  strcpy(cmdStr, cmdStrPrefix);
+  strcat(cmdStr, "NNN");
+  cmdLen = strlen(cmdStr);
+  
+  
+  idLen = strlen(cmdStr) - strlen(cmdStrPrefix);
+}           
+
+
+void  RequestRecv() {
+  
+  
+    HAL_GPIO_WritePin(RS485_ENABLE_PORT, RS485_RE_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(RS485_ENABLE_PORT, RS485_DE_PIN, GPIO_PIN_RESET);
+
+    
+    //while(HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY)
+      //;
+    
+    
+  
+  //__HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+    
+    //if((ret = HAL_UART_Receive_IT(&huart1, (uint8_t *)ucpRx1Buffer, RX1BUFFERSIZE)) != HAL_OK) 
+    
+    uint8_t localData;
+    int recvRet;
+    if((recvRet=HAL_UART_Receive(&huart3,&localData,1, 0xFF)) == HAL_OK) {
+      data.RxBuf[data.rx_point_head++] = localData;
+      data.rx_point_head %= RBUF_SIZE;
+    }
+    else {
+      errCode[transferErrorCount%256] = recvRet;
+      transferErrorCount ++;
+      readErrorCount ++;
+    }
+      
+    
+}
+
+void ProcessInput() {
+
+  
+  if(data.rx_point_tail == data.rx_point_head)
+    return;
+    
+  data_element = data.RxBuf[data.rx_point_tail++];
+  data.rx_point_tail %= RBUF_SIZE;
+  
+  if(data.Flag == 0 && data_element != STX)
+    return;
+    
+  if(data.Flag==1 && ((data_element == ETX) || (IsValid(data_element) && data.cmdIndex >= cmdLen))) {  
+       
+    if(data.cmdIndex == cmdLen)
+      requestOkay = 1;
+    
+    data.Flag = 0;
+    
+  }
+  
+  else if(data.Flag==1) { 
+    
+    if(IsValid(data_element) && data.cmdIndex < cmdLen) {
+      data.Flag = 1;
+      data.CurrentCmd[data.cmdIndex++] = data_element;
+    }
+    else
+      data.Flag = 0;
+  }
+  
+  else if(data_element == STX) {  //1st Start flag
+    data.Flag = 1;
+    data.cmdIndex = 0;
+  }
+
+  if(requestOkay == 1) {
+    
+    if(CheckCmd() == 1) {
+      dataReady = 1;
+      requestOkay = 0;
+    }
+    
+  }  
+ 
+
+}    
+
+
+int CheckID(uint8_t * idStr) {          // 1 means valid
+  
+  
+  
+  uint32_t id = 0;
+  
+  
+  return 1;
+  /*
+  if(idStr[2] != '0')
+    return 0;
+  addrData = idStr[0];
+  
+  addrCrc = crcCalc(addrData, 8, POLYNOM4);
+  if (addrCrc != idStr[1])
+    return 0;
+  
+  return (idStr[0] == myAddr);
+  */
+  
+   
+}
+
+int IsValid(uint8_t value) {           // 1 means valid 
+  
+  return 1;
+  if(data.cmdIndex == 10)
+    data.cmdIndex = 10;
+  if(cmdStr[data.cmdIndex] == 'N')  
+    return  1;
+    
+  
+  
+  if(!(value == ' ' || (value >= 'A' && value <= 'Z') || (value >= '0' && value <= '9' ))) 
+    return 0;
+  
+  if(value != cmdStr[data.cmdIndex])
+    return 0;
+  
+  return 1;
+    
+
+}
+
+int CheckCmd() {
+  
+  return 1;
+  
+  int len = strlen(cmdStrPrefix);
+  
+  int i=0;
+  for(i=0; i<len; i++)
+    if(data.CurrentCmd[i] != cmdStrPrefix[i])
+      return 0;
+  
+  return CheckID(&data.CurrentCmd[len]);
   
 }
 
+void SendData() {
+  
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+
+  /* consume the received character */
+
+  if(huart == &huart3)
+  {
+    
+    readCallback++;
+    
+    data.RxBuf[data.rx_point_head++] = myChar;
+    data.rx_point_head %= RBUF_SIZE;         
+  
+    reqReceived = 1;
+    
+  }  
+  
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+  
+  
+  if(sentBufferEmpty == 0)
+    writeErrorCount ++;
+  else
+    readErrorCount ++;
+  
+  errCode[transferErrorCount%256] = huart->ErrorCode;
+  transferErrorCount ++;
+  sentBufferEmpty = 1;
+  
+  //UART_RxAgain(huart);
+}
+
+
+
+
+//USART_ClearITPendingBit(USARTx, USART_IT_TC)
+
+void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT)
+{
+  uint16_t bitpos = 0x00, itmask = 0x00;
+  /* Check the parameters */
+  assert_param(IS_USART_ALL_PERIPH(USARTx));
+  assert_param(IS_USART_CLEAR_IT(USART_IT));
+  /* The CTS interrupt is not available for UART4 and UART5 */
+  if (USART_IT == UART_IT_CTS)
+  {
+    assert_param(IS_USART_123_PERIPH(USARTx));
+  }   
+  
+  bitpos = USART_IT >> 0x08;
+  itmask = ((uint16_t)0x01 << (uint16_t)bitpos);
+  USARTx->Instance->SR = (uint16_t)~itmask;
+}
+  
+
+
+/* input capture?y? callback??? ???*/
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
+  // INPUT CAPTURE ????? TIM3 ?? ???? ???????? ???
   if(htim ->Instance == TIM3)
-  {  
-      if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+  {
+      if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) // TIM a???? 1?? ???
       {
-            ch1.newv = htim ->Instance->CCR1;
-            if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_6))
+            timer2Tick ++;
+            ch0.newv = htim ->Instance->CCR1;                 // a??0 newv?? ???? ?©£? ????
+            if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_6))    //  RISING EDGE???? ???? ???? ???
             {
-                ch1.oldv = ch1.newv;
-                set_polarity(TIM3,1,2);
+                ch0.oldv = ch0.newv;                                   //  ????? FALLING EDGE?? ???? ??? ?? ????? ???????? ??????? old?? ????
+                set_polarity(TIM3,1,2);                                 //   ?????? ?????? RISING EDGE???? FALLING EDGE?? ???
             }
             else
             {      
-                set_polarity(TIM3,1,0);
-                ch1.width  = (ch1.newv > ch1.oldv)? (ch1.newv - ch1.oldv) : (7200 + ch1.newv - ch1.oldv);
-                ch1.status = 1;
+                set_polarity(TIM3,1,0);                                 // ?????? ?????? FALLING EDGE???? RISING EDGE?? ???
+                // falling ???? ???? rising???? ???? ???? ?????? ????? ??? [?????¡À¥ï???? ???]
+                ch0.width  = (ch0.newv > ch0.oldv)? (ch0.newv - ch0.oldv) : (7200 + ch0.newv - ch0.oldv); 
+                ch0.status = 1;  // ???¥ï? ??? ?? ??????? ????
             }
       }
       else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
       {
-            ch2.newv = htim ->Instance->CCR2;
+            ch1.newv = htim ->Instance->CCR2;
             if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_7))
             {
-                ch2.oldv = ch2.newv;
+                ch1.oldv = ch1.newv;
                 set_polarity(TIM3,2,2);
             }
             else
             {
                 set_polarity(TIM3,2,0);
-                ch2.width  = (ch2.newv > ch2.oldv)? (ch2.newv - ch2.oldv) : (7200 + ch2.newv - ch2.oldv);
-                ch2.status = 1;
+                ch1.width  = (ch1.newv > ch1.oldv)? (ch1.newv - ch1.oldv) : (7200 + ch1.newv - ch1.oldv);
+                ch1.status = 1;
             }      
       }
       else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3)
       {
-            ch3.newv = htim ->Instance->CCR3;
+            ch2.newv = htim ->Instance->CCR3;
             if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_8))
             {
-                ch3.oldv = ch3.newv;
+                ch2.oldv = ch2.newv;
                 set_polarity(TIM3,3,2);
             }
             else
             {
                 set_polarity(TIM3,3,0);
-                ch3.width  = (ch3.newv > ch3.oldv)? (ch3.newv - ch3.oldv) : (7200 + ch3.newv - ch3.oldv);
-                ch3.status = 1;
+                ch2.width  = (ch2.newv > ch2.oldv)? (ch2.newv - ch2.oldv) : (7200 + ch2.newv - ch2.oldv);
+                ch2.status = 1;
             }      
       }
     
        else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4)
       {
-            ch4.newv = htim ->Instance->CCR4;
+            ch3.newv = htim ->Instance->CCR4;
             if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_9))
             {
-                ch4.oldv = ch4.newv;
+                ch3.oldv = ch3.newv;
                 set_polarity(TIM3,4,2);
             }
             else
             {
                 set_polarity(TIM3,4,0);
-                ch4.width  = (ch4.newv > ch4.oldv)? (ch4.newv - ch4.oldv) : (7200 + ch4.newv - ch4.oldv);
-                ch4.status = 1;
+                ch3.width  = (ch3.newv > ch3.oldv)? (ch3.newv - ch3.oldv) : (7200 + ch3.newv - ch3.oldv);
+                ch3.status = 1;
             }      
       }
   }
 }
 
+float map(float x, float in_min, float in_max, float out_min, float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
+// ?????? ??? ???? ???? ???, TIM 1a?¥ç? RISING, FALLING?? ??????? ???? ???
 void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity)
 { // ch(1,2,3,4), polarity 0: rise,high, 2: fall,low
   uint16_t c = TIM_CCER_CC1P << ((ch-1)*4);
-  if( polarity == 0 )
+  if( polarity == 0 )           // RISING???? ???
       tim->CCER &= ~c;
-  else
+  else                            // FALLING???? ???
       tim->CCER |= c;
 }
 
+// 3???? ??????? ??? ??? ???? ???
 float getMvAverage(__IO float *ch, __IO float value, int len)
 {
     float sum = 0;
     
+    //  ??????? ??? ?????, ex ?ò÷[1]?? ??? ??????? ?ò÷ [0]???? ???, 
     for(int i=0;i<len-1;i++)
       ch[i] = ch[i]+1;
        
-    ch[len-1] = value;
+    // ?ò÷ ???????? ???¥ï? ?????? ????
+    ch[len-1] = value; 
     
+    //  ??? ???? ??????? ???? ??????? ???
     for(int i=0;i<len;i++)
       sum += ch[i];
     
-    return sum / (float)len;
+    return sum / (float)len; // ??? ??????? ?????? ????? ???? ???
     
 }
 

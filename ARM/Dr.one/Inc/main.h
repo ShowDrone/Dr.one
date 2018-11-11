@@ -46,6 +46,8 @@
 /* USER CODE BEGIN Includes */
 
 
+#include "config.h"
+
 #include "stm32f1xx_hal.h"
 #include "stm32f103xe.h"
 #include <stdint.h>
@@ -73,10 +75,10 @@
 #define RT_A_GPIO_Port GPIOC
 #define RT_B_Pin GPIO_PIN_5
 #define RT_B_GPIO_Port GPIOC
-#define DC_D_PWM_Pin GPIO_PIN_10
-#define DC_D_PWM_GPIO_Port GPIOB
-#define DC_C_PWM_Pin GPIO_PIN_11
+#define DC_C_PWM_Pin GPIO_PIN_10
 #define DC_C_PWM_GPIO_Port GPIOB
+#define DC_D_PWM_Pin GPIO_PIN_11
+#define DC_D_PWM_GPIO_Port GPIOB
 #define DC_A_DIR_Pin GPIO_PIN_12
 #define DC_A_DIR_GPIO_Port GPIOB
 #define DC_B_DIR_Pin GPIO_PIN_13
@@ -119,9 +121,13 @@
 
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
-#define TXBUFFERSIZE                      7
-#define RXBUFFERSIZE                      5
+#define TXBUFFERSIZE          7
+#define RXBUFFERSIZE          7              
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+  
+#define CR1_PE_Set (0x0001)
+#define CR1_PE_Reset (0xFFFE)
+    
 typedef struct Ch
 {
    __IO uint16_t  newv;
@@ -159,11 +165,14 @@ typedef struct Pid {
   float dt;
   float control;
   int16_t kp_integer;
-  int16_t kp_decimal;
+  int16_t kp_decimalL;   
+  int16_t kp_decimalH; 
   int16_t ki_integer;
-  int16_t ki_decimal;
+  int16_t ki_decimalL;
+  int16_t ki_decimalH;
   int16_t kd_integer;
-  int16_t kd_decimal;
+  int16_t kd_decimalL;
+  int16_t kd_decimalH;
 } PID;
 
     

@@ -41,45 +41,45 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "rs485.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc2;
 
-//  ???? ???
-I2C_HandleTypeDef hi2c1;
-DMA_HandleTypeDef hdma_i2c1_rx;
-DMA_HandleTypeDef hdma_i2c1_tx;
-
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
+UART_HandleTypeDef huart3;
+
 /* USER CODE BEGIN PV */
+
+#define PIDGAINBUFFER 50
+
 /* Private variables ---------------------------------------------------------*/
 
 
-// DC ???? ????u ????
+// 
 /*
-DC???? ???? 0~3 = A~D
+DC Pin Number 0~3 = A~D
      D
-    ??
- B|  | C
-    ??
-     A
-  [??????????]
+    
+ C |  | C
+    
+     B
+  []
 */
 DC dc0 = {DC_A_DIR_GPIO_Port, DC_A_PWM_GPIO_Port, DC_A_DIR_Pin, DC_A_PWM_Pin , 0}; 
 DC dc1 = {DC_B_DIR_GPIO_Port, DC_B_PWM_GPIO_Port, DC_B_DIR_Pin, DC_B_PWM_Pin, 0};
 DC dc2 = {DC_C_DIR_GPIO_Port, DC_C_PWM_GPIO_Port, DC_C_DIR_Pin, DC_C_PWM_Pin, 0};
 DC dc3 = {DC_D_DIR_GPIO_Port, DC_D_PWM_GPIO_Port, DC_D_DIR_Pin, DC_D_PWM_Pin, 0};
 
-// BLDC ???? ????u ????  
-BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin};  // ?? ????? 0
-BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin};  // ??? ????? 1
+// BLDC 
+BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin}; 
+BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin}; 
 
 //  ch0~3 = dc0~3
 CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0};  // newv, oldv, width, angle, data[3], status
@@ -88,49 +88,47 @@ CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
 CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
 
 // pid0~3 = dc0~3
-PID pid0 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
-PID pid1 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid2 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid3 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid0 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
+PID pid1 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid2 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid3 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_ADC2_Init(void);
-static void MX_NVIC_Init(void);
+static void MX_USART3_UART_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-               
+                                
                                 
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-// ?????? ??? ???? ???? ???, Falling Edge<-> Rising Edge
+//  Falling Edge<-> Rising Edge
 static void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity);
-// 3???? ??????? ??? ??? ????? ???
 float getMvAverage(__IO float *ch, __IO float value, int len);
-// bldc ???? pid ??? ???
 void setPidBLDC (PID pid, BL bl);
-// dc ???? pid ??? ???
 void setPidDC (PID *pid, CH *ch, DC *dc);
+void sepPidGain(PID *pid, int bufCount);
+void sumPidGain(PID *pid); 
+void entPidGain();
 float map(float x, float in_min, float in_max, float out_min, float out_max);
-
+void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
 static int timer2Tick = 0;
 float targetDeg = 0.;
-  
+int8_t startPidGain = 1;
 uint8_t aTxBuffer[] = "abcdefg";
-uint8_t aRxBuffer[RXBUFFERSIZE];
-
+uint8_t aRxBuffer[10];
+uint8_t setPidGainBuf[64];
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -164,19 +162,16 @@ int main(void)
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
+
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_ADC1_Init();
-  MX_I2C1_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_ADC2_Init();
-
-  /* Initialize interrupts */
-  MX_NVIC_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
   // BLDC Motor  490 Hz period  pulse width 0 ~ 2040
@@ -200,41 +195,27 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
   
-  if(HAL_I2C_Slave_Receive_IT(&hi2c1, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
-  {
-    printf("set slave Receive IT Failed\n");
-     _Error_Handler(__FILE__, __LINE__);
-  }
+    //USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
-  
-  /*
-   if(HAL_I2C_Slave_Transmit_IT(&hi2c1, (uint8_t*)aTxBuffer, TXBUFFERSIZE)!= HAL_OK)
-  {
-    printf("set slave Transmit IT Failed\n");
-    //Error_Handler();    
-  }*/
-  
-  
- 
   /* USER CODE END 2 */
 
-   
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   
-  
   while (1) 
   {
+    
+    HAL_UART_Receive_IT(&huart3, (uint8_t*)aRxBuffer, 10);
+    
   /* USER CODE END WHILE */
-    
+
   /* USER CODE BEGIN 3 */
+
     
     
-  if(HAL_I2C_Slave_Receive_IT(&hi2c1, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
-  {
-    printf("set slave Receive IT Failed\n");
-     _Error_Handler(__FILE__, __LINE__);
-  }
+   
+    
+
     
     if(ch0.status == 1) 
     {
@@ -309,6 +290,8 @@ int main(void)
     printf("D:\t"); printf("%d\t",dc3.setValue); printf("%.3f\n\n", ch0.angle); 
    */ 
   }
+  /* USER CODE END 3 */
+
 }
 
 /**
@@ -345,11 +328,10 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
- if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
-
 
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
@@ -368,26 +350,6 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-}
-
-/**
-  * @brief NVIC Configuration.
-  * @retval None
-  */
-static void MX_NVIC_Init(void)
-{
-  /* I2C1_EV_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
-  /* I2C1_ER_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(I2C1_ER_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(I2C1_ER_IRQn);
-  /* DMA1_Channel6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
-  /* DMA1_Channel7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
 }
 
 /* ADC1 init function */
@@ -482,32 +444,6 @@ static void MX_ADC2_Init(void)
 
 }
 
-/* I2C1 init function */
-static void MX_I2C1_Init(void)
-{
-
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = I2C_SPEEDCLOCK;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = I2C_ADDRESS;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_ENABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
- HAL_NVIC_SetPriority(I2C1_EV_IRQn, 0, 0); 
- HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);  
- 
- HAL_NVIC_SetPriority(I2C1_ER_IRQn, 0, 0); 
- HAL_NVIC_EnableIRQ(I2C1_ER_IRQn); 
-
-}
-
 /* TIM1 init function */
 static void MX_TIM1_Init(void)
 {
@@ -517,9 +453,9 @@ static void MX_TIM1_Init(void)
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 71; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
+  htim1.Init.Prescaler = 71;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 2040; // 2040
+  htim1.Init.Period = 2040;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -536,7 +472,7 @@ static void MX_TIM1_Init(void)
   }
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 1000;
+  sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
@@ -551,21 +487,27 @@ static void MX_TIM1_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
-  
 
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 1500;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_SET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
-  
+
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -582,16 +524,15 @@ static void MX_TIM2_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 287; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
+  htim2.Init.Prescaler = 71;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 509;
+  htim2.Init.Period = 2040;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
-  
 
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
@@ -636,9 +577,9 @@ static void MX_TIM3_Init(void)
   TIM_IC_InitTypeDef sConfigIC;
 
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 8; //  ???????? ????? 1100hz?? period?? 7200???? ????????? prescaler?? 72,000,000/7200/1100= x, x?? 9???? Presecaler?? -1??? ?????? ?????? 8
+  htim3.Init.Prescaler = 8;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 7199; // ??? ??? ?????? 0.05???? ?????? 0.05 : 1 = 360 : 7200,
+  htim3.Init.Period = 7199;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
@@ -687,9 +628,9 @@ static void MX_TIM4_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 287; // pwm ????? 490Hz[esc??? ??????? 500hz?? ??????]?? ????? ???? Presecaler?? Period?? 71, 2040???? ???? 
+  htim4.Init.Prescaler = 71;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 509;
+  htim4.Init.Period = 2040;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
@@ -722,13 +663,22 @@ static void MX_TIM4_Init(void)
 
 }
 
-/** 
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void) 
+/* USART3 init function */
+static void MX_USART3_UART_Init(void)
 {
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
 
 }
 
@@ -741,6 +691,7 @@ static void MX_DMA_Init(void)
 */
 static void MX_GPIO_Init(void)
 {
+
   GPIO_InitTypeDef GPIO_InitStruct;
 
   /* GPIO Ports Clock Enable */
@@ -786,12 +737,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
- 
-  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  
+  
+  
+  
 }
 
 /* USER CODE BEGIN 4 */
@@ -828,7 +783,6 @@ void setPidDC(PID *pid, CH *ch, DC *dc)
   else {
       pid->err = temp;
   }
-            
   
   pid->de = pid->err - pid->err_prev;        
   pid->dt = 0.001;                                 
@@ -844,20 +798,106 @@ void setPidDC(PID *pid, CH *ch, DC *dc)
   dc->setValue = pid->control;
   pid->err_prev = pid->err;
 }
-                   
-void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
+
+void sepPidGain(PID *pid, int bufCount)
 {
-    printf("hi\n");
+  pid->kp_integer  = setPidGainBuf[bufCount+1];  
+  pid->kp_decimalL = setPidGainBuf[bufCount+2];  
+  pid->kp_decimalH = setPidGainBuf[bufCount+3];  
+  pid->ki_integer  = setPidGainBuf[bufCount+4];   
+  pid->ki_decimalL = setPidGainBuf[bufCount+5];  
+  pid->ki_decimalH = setPidGainBuf[bufCount+6];  
+  pid->kd_integer  = setPidGainBuf[bufCount+7];  
+  pid->kd_decimalL = setPidGainBuf[bufCount+8];  
+  pid->kd_decimalH = setPidGainBuf[bufCount+9];  
 }
 
-void HAL_I2C_SlaveTxCpltCallback(I2C_HandleTypeDef *I2cHandle)
+void sumPidGain(PID *pid)
 {
-    printf("hi\n");
+  pid->kp =  pid->kp_integer;
+  pid->kp += ((pid->kp_decimalH << 8) & (pid->kp_decimalL)) * 0.0001;
+  
+  pid->ki =  pid->ki_integer;
+  pid->ki += ((pid->ki_decimalH << 8) & (pid->ki_decimalL)) * 0.0001;
+  
+  pid->kd =  pid->kd_integer;
+  pid->kd += ((pid->kd_decimalH << 8) & (pid->kd_decimalL)) * 0.0001;
 }
 
-void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *I2cHandle)
+void entPidGain()
 {
+    int sum = 0;
+    for (int i=0;i<PIDGAINBUFFER-1;i++)
+    {
+      sum += setPidGainBuf[i];
+    }
+    sum = (sum & 0xff) + (sum >> 8);
+    
+    sum = ~sum;
+    
+    // sum == 1 ok, sum != 1 not ok
+    
+    setPidGainBuf[PIDGAINBUFFER-1];
+    
+    sepPidGain(&pid0, 0);
+    sepPidGain(&pid1, 8);
+    sepPidGain(&pid2, 17);
+    sepPidGain(&pid3, 26);
+    
+    sumPidGain(&pid0);
+    sumPidGain(&pid1);
+    sumPidGain(&pid2);
+    sumPidGain(&pid3);
+  
 }
+        
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+
+    printf("a\r\n");
+    USART_ClearITPendingBit(&huart3, UART_IT_TC);
+  /* consume the received character */
+/*
+  if(huart == &huart3)
+  {
+    
+    readCallback++;
+    
+    data.RxBuf[data.rx_point_head++] = myChar;
+    data.rx_point_head %= RBUF_SIZE;         
+  
+    reqReceived = 1;
+    
+  }  */
+  
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+
+  //UART_RxAgain(huart);
+}
+
+
+
+
+//USART_ClearITPendingBit(USARTx, USART_IT_TC)
+
+void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT)
+{
+  uint16_t bitpos = 0x00, itmask = 0x00;
+  /* Check the parameters */
+  assert_param(IS_USART_ALL_PERIPH(USARTx));
+  assert_param(IS_USART_CLEAR_IT(USART_IT));
+  /* The CTS interrupt is not available for UART4 and UART5 */
+  if (USART_IT == UART_IT_CTS)
+  {
+    assert_param(IS_USART_123_PERIPH(USARTx));
+  }   
+  
+  bitpos = USART_IT >> 0x08;
+  itmask = ((uint16_t)0x01 << (uint16_t)bitpos);
+  USARTx->Instance->SR = (uint16_t)~itmask;
+}
+  
 
 
 /* input capture?y? callback??? ???*/
@@ -866,9 +906,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
   // INPUT CAPTURE ????? TIM3 ?? ???? ???????? ???
   if(htim ->Instance == TIM3)
   {
-    timer2Tick ++;
       if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) // TIM a???? 1?? ???
       {
+            timer2Tick ++;
             ch0.newv = htim ->Instance->CCR1;                 // a??0 newv?? ???? ?©£? ????
             if(HAL_GPIO_ReadPin(GPIOC,GPIO_PIN_6))    //  RISING EDGE???? ???? ???? ???
             {

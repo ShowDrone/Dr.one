@@ -46,10 +46,13 @@
 /* USER CODE BEGIN Includes */
 
 
+#include "config.h"
+
 #include "stm32f1xx_hal.h"
 #include "stm32f103xe.h"
 #include <stdint.h>
-
+#include <math.h>
+    
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
@@ -116,10 +119,14 @@
 
 /* USER CODE BEGIN Private defines */
 
-#define rxLength 20
-#define txLength 10    
-   
-
+#define I2C_ADDRESS        0x60   
+#define I2C_SPEEDCLOCK   400000
+#define TXBUFFERSIZE          7
+#define RXBUFFERSIZE          7              
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+  
+#define CR1_PE_Set (0x0001)
+#define CR1_PE_Reset (0xFFFE)
     
 typedef struct Ch
 {
@@ -136,14 +143,37 @@ typedef struct Dc {
   GPIO_TypeDef  *pwmPort;
   __IO int8_t   dirID;
   __IO int8_t   pwmID;
-  int16_t       setValue;
+  int       setValue;
  } DC;
  
 typedef struct Bl {
   GPIO_TypeDef *port;
-  __IO int8_t   pwmID;
+  int8_t   pwmID;
   int16_t       setValue;
  } BL;
+
+typedef struct Pid {
+  float kp;
+  float ki;
+  float kd;
+  float p;
+  float i;
+  float d;
+  float err;
+  float err_prev;
+  float de;
+  float dt;
+  float control;
+  int16_t kp_integer;
+  int16_t kp_decimalL;   
+  int16_t kp_decimalH; 
+  int16_t ki_integer;
+  int16_t ki_decimalL;
+  int16_t ki_decimalH;
+  int16_t kd_integer;
+  int16_t kd_decimalL;
+  int16_t kd_decimalH;
+} PID;
 
     
 /* USER CODE END Private defines */
