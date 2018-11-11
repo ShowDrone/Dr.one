@@ -33,6 +33,7 @@
 
 typedef struct Servo {
     float y;
+    float x;
     bool mode;
 } SERVO;
 
@@ -68,8 +69,7 @@ extern PID   dc1;
 extern PID   dc2;
 extern PID   dc3;
 extern PID   bl;
-
 extern SERVO servo;
-extern uint8_t bldcSpeed;
+extern float bldcSpeed;
 
 #endif

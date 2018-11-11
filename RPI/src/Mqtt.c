@@ -116,6 +116,27 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		}
 	}
 
+	mosquitto_topic_matches_sub("pidrone/CMD/MV",message->topic,&match);
+	if (match)
+	{
+		msg=(char *)message->payload;
+
+		s1=strtok(msg,",");
+		roll.y=atof(s1);
+		s1=strtok(NULL,",");
+		pitch.y=atof(s1);
+		s1=strtok(NULL,",");
+		yaw.y=atof(s1);
+		s1=strtok(NULL,",");
+		bldcSpeed = atof(s1);
+		s1=strtok(NULL,",");
+		servo.y = atof(s1);
+		s1=strtok(NULL,"\r");
+		servo.x = atof(s1);
+
+		printf("input : roll %f, pitch %f, yaw %f, bl %i, ser %f, ser %f\r\n",roll.y,pitch.y,yaw.y,bldcSpeed,servo.y,servo.x);	
+	}
+
 	// PID GAIN, 스피드 등으로 return 해주는 코드		
 	mosquitto_topic_matches_sub("pidrone/CMD/FG/get", message->topic, &match);
 	if (match) {
