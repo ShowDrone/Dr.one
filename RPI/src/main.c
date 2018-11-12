@@ -50,6 +50,8 @@ PID   dc0   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc1   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc2   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc3   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+
+
 PID   bl    = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
 float bldcSpeed = 0;	
@@ -97,7 +99,6 @@ int main(int argc, char **argv) {
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
 
 	while (1) {
-		send_Arm_ReadyToFly();
 	   	// imu로 9축 데이터 읽어 오는 곳
 		while(imu->IMURead()); 
 		imuData = imu->getIMUData();
@@ -123,7 +124,8 @@ int main(int argc, char **argv) {
 
 		setSeparate(&roll);
 		setSeparate(&pitch);
-		setSeparate(&yaw); 		
+		setSeparate(&yaw); 	
+		send_Arm_ReadyToFly();	
 
 		softPwmWrite(SERVO_LANDING, servo.y);
 
@@ -156,6 +158,8 @@ int main(int argc, char **argv) {
 				//printf("yawgain=\f\r\n", yawgain);
 			}
 		}
+
+
 
 		
 		/* GPS Data */

@@ -39,10 +39,10 @@ typedef struct Servo {
 
 typedef struct Apart {
     float temp;
-    uint8_t integerL;
-    uint8_t integerH;
-    uint8_t decimalL;
-    uint8_t decimalH;
+    char integerL;
+    char integerH;
+    char decimalL;
+    char decimalH;
 } APART;
 
 typedef struct Angle {

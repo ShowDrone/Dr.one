@@ -287,44 +287,44 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		getid = atoi(s1);
 		if(getid == 0) {
 			s1 = strtok(NULL, ",");
-		    dc0.p = atof(s1);
+		    	dc0.p = atof(s1);
 			s1 = strtok(NULL, ",");
-		    dc0.i = atof(s1);
+		    	dc0.i = atof(s1);
 			s1 = strtok(NULL, "\r");
-		    dc0.d = atof(s1);
+		    	dc0.d = atof(s1);
 			setSeparate(&dc0);
+		    	printf("dc0: %.3f %.3f %.3f\r\n", dc0.p, dc0.i, dc0.d);
 		}
 		if(getid == 1) {
 			s1 = strtok(NULL, ",");
-		    dc1.p = atof(s1);
+		    	dc1.p = atof(s1);
 			s1 = strtok(NULL, ",");
-		    dc1.i = atof(s1);
+		    	dc1.i = atof(s1);
 			s1 = strtok(NULL, "\r");
-		    dc1.d = atof(s1);
+		    	dc1.d = atof(s1);
 			setSeparate(&dc1);
+			printf("dc1: %.3f %.3f %.3f\r\n", dc1.p, dc1.i, dc1.d);
 		}
 		if(getid == 2) {
 			s1 = strtok(NULL, ",");
-		    dc2.p = atof(s1);
+		    	dc2.p = atof(s1);
 			s1 = strtok(NULL, ",");
-		    dc2.i = atof(s1);
+		    	dc2.i = atof(s1);
 			s1 = strtok(NULL, "\r");
-		    dc2.d = atof(s1);
+		    	dc2.d = atof(s1);
 			setSeparate(&dc2);
+			printf("dc2: %.3f %.3f %.3f\r\n", dc2.p, dc2.i, dc2.d);
 		}
 		if(getid == 3) {
 			s1 = strtok(NULL, ",");
-		    dc3.p = atof(s1);
+		    	dc3.p = atof(s1);
 			s1 = strtok(NULL, ",");
-		    dc3.i = atof(s1);
+		    	dc3.i = atof(s1);
 			s1 = strtok(NULL, "\r");
-		    dc3.d = atof(s1);
+		    	dc3.d = atof(s1);
 			setSeparate(&dc3);
+			printf("dc3: %.3f %.3f %.3f\r\n", dc3.p, dc3.i, dc3.d);
 		}
-		printf("DC0: %f %f %f\r\n", dc0.p, dc0.i, dc0.d);
-		printf("DC1: %f %f %f\r\n", dc1.p, dc1.i, dc1.d);
-		printf("DC2: %f %f %f\r\n", dc2.p, dc2.i, dc2.d);
-		printf("DC3: %f %f %f\r\n", dc3.p, dc3.i, dc3.d);
 		//int16_t testVariable = 0;
 		//testVariable = (dc0.pGain.decimalH << 8) | (dc0.pGain.decimalL);
 		//float ta = (float)testVariable / 10000;
@@ -388,9 +388,9 @@ void setSeparate(PID *pid) {
 	pid->iGain.integerL = pid->iGain.temp;
 	pid->dGain.integerL = pid->dGain.temp;
 
-	pid->pGain.temp = (pid->p - pid->pGain.temp) * 10000;
-	pid->iGain.temp = (pid->i - pid->iGain.temp) * 10000;
-	pid->dGain.temp = (pid->d - pid->dGain.temp) * 10000;
+	pid->pGain.temp = (pid->p - pid->pGain.temp) * 1000;
+	pid->iGain.temp = (pid->i - pid->iGain.temp) * 1000;
+	pid->dGain.temp = (pid->d - pid->dGain.temp) * 1000;
 
 	pid->pGain.decimalL = (int)pid->pGain.temp & 0xff;
 	pid->iGain.decimalL = (int)pid->iGain.temp & 0xff;

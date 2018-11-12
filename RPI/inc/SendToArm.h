@@ -13,8 +13,6 @@
 #include <termios.h>
 #include <string.h>
 #include "main.h"
-#define FLYING_BYTE 18
-#define READY_TO_FLY_BYTE 61
 
 typedef struct Rpi {
 	int setValue;
