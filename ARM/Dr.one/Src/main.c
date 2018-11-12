@@ -121,6 +121,7 @@ void sepPidGain(PID *pid, int bufCount);
 void sumPidGain(PID *pid); 
 void entPidGain();
 float map(float x, float in_min, float in_max, float out_min, float out_max);
+uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte);
 void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
 
 /* USER CODE END PFP */
@@ -129,10 +130,9 @@ void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
 
 static int timer2Tick = 0;
 float targetDeg = 0.;
-int8_t startPidGain = 1;
-uint8_t aTxBuffer[] = "";
+int8_t Start_SetPidGain = 1;
 uint8_t ReadyToFlyBuf[READY_TO_FLY_BYTE];
-uint8_t setPidGainBuf[64];
+uint8_t Fill_ReadyToFlyBuf = 0;
 
 /* USER CODE END 0 */
 
@@ -193,28 +193,33 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
   
-    //USART_ClearITPendingBit(&huart3, UART_IT_TC);
+  USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
   /* USER CODE END 2 */
-
+  
+  printf("Main\r\n");
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   
   while (1) 
   {
     
-    HAL_UART_Receive_IT(&huart3, (uint8_t*)ReadyToFlyBuf, READY_TO_FLY_BYTE);
     
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
 
-    
-    
-    //printf("%d\r\n",ReadyToFlyBuf[0]);
-    entPidGain();
-    printf("%.3f %.3f %.3f %.3f \r\n", pid0.kd, pid1.kd, pid2.kd, pid3.kd);
-   //printf("%d %d %d \r\n", pid0.kp_integer, pid0.kp_decimalL, pid0.kp_decimalH);
+    while(Start_SetPidGain)
+    {
+      HAL_UART_Receive_IT(&huart3, (uint8_t*)ReadyToFlyBuf, READY_TO_FLY_BYTE);
+      if(Fill_ReadyToFlyBuf == 1) 
+      {
+        entPidGain();
+        Start_SetPidGain =ReadyToFlyBuf[READY_TO_FLY_BYTE-2];
+        printf("%.3f %.3f %.3f %.3f \r\n", pid0.kd, pid1.kd, pid2.kd, pid3.kd);
+        Fill_ReadyToFlyBuf = 0;
+      }
+    }
     
     if(ch0.status == 1) 
     {
@@ -674,6 +679,8 @@ static void MX_USART3_UART_Init(void)
   huart3.Init.Mode = UART_MODE_TX_RX;
   huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  
+  HAL_UART_DeInit(&huart3);
   if (HAL_UART_Init(&huart3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -855,7 +862,13 @@ void entPidGain()
 }
         
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  
+  if(checkSum(ReadyToFlyBuf, READY_TO_FLY_BYTE-1,ReadyToFlyBuf[READY_TO_FLY_BYTE-1]) == 0) {
+    Fill_ReadyToFlyBuf = 1;
+  }
   USART_ClearITPendingBit(&huart3, UART_IT_TC);
+  
+  
   /* consume the received character */
 /*
   if(huart == &huart3)
@@ -871,7 +884,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   }  */
   
 }
-
+   
+     
+uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte) {
+	uint16_t sum = 0;
+	uint8_t nibble = 0;
+	for(int i=0;i<len;i++) {
+		sum += data[i];
+	}
+	nibble = sum >> 8;
+	sum = (sum & 0xff) + nibble;
+	return ~(checkSumByte + sum);
+} 
+     
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 
   //UART_RxAgain(huart);
