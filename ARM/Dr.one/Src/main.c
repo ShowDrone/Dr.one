@@ -57,7 +57,7 @@ UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
-#define PIDGAINBUFFER 50
+#define PIDGAINBUFFER 39
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -105,7 +105,6 @@ static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_USART3_UART_Init(void);
-
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
                                 
@@ -123,16 +122,17 @@ void sumPidGain(PID *pid);
 void entPidGain();
 float map(float x, float in_min, float in_max, float out_min, float out_max);
 void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
-static int timer2Tick = 0;
-float targetDeg = 0.;
-int8_t startPidGain = 1;
-uint8_t aTxBuffer[] = "abcdefg";
-uint8_t aRxBuffer[10];
-uint8_t setPidGainBuf[64];
+
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
 
+static int timer2Tick = 0;
+float targetDeg = 0.;
+int8_t startPidGain = 1;
+uint8_t aTxBuffer[] = "";
+uint8_t ReadyToFlyBuf[READY_TO_FLY_BYTE];
+uint8_t setPidGainBuf[64];
 
 /* USER CODE END 0 */
 
@@ -162,8 +162,6 @@ int main(void)
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC1_Init();
   MX_TIM1_Init();
@@ -205,7 +203,7 @@ int main(void)
   while (1) 
   {
     
-    HAL_UART_Receive_IT(&huart3, (uint8_t*)aRxBuffer, 10);
+    HAL_UART_Receive_IT(&huart3, (uint8_t*)ReadyToFlyBuf, READY_TO_FLY_BYTE);
     
   /* USER CODE END WHILE */
 
@@ -213,9 +211,10 @@ int main(void)
 
     
     
-   
-    
-
+    //printf("%d\r\n",ReadyToFlyBuf[0]);
+    entPidGain();
+    printf("%.3f %.3f %.3f %.3f \r\n", pid0.kd, pid1.kd, pid2.kd, pid3.kd);
+   //printf("%d %d %d \r\n", pid0.kp_integer, pid0.kp_decimalL, pid0.kp_decimalH);
     
     if(ch0.status == 1) 
     {
@@ -801,35 +800,39 @@ void setPidDC(PID *pid, CH *ch, DC *dc)
 
 void sepPidGain(PID *pid, int bufCount)
 {
-  pid->kp_integer  = setPidGainBuf[bufCount+1];  
-  pid->kp_decimalL = setPidGainBuf[bufCount+2];  
-  pid->kp_decimalH = setPidGainBuf[bufCount+3];  
-  pid->ki_integer  = setPidGainBuf[bufCount+4];   
-  pid->ki_decimalL = setPidGainBuf[bufCount+5];  
-  pid->ki_decimalH = setPidGainBuf[bufCount+6];  
-  pid->kd_integer  = setPidGainBuf[bufCount+7];  
-  pid->kd_decimalL = setPidGainBuf[bufCount+8];  
-  pid->kd_decimalH = setPidGainBuf[bufCount+9];  
+  pid->kp_integer  = ReadyToFlyBuf[bufCount+1];  
+  pid->kp_decimalL = ReadyToFlyBuf[bufCount+2];  
+  pid->kp_decimalH = ReadyToFlyBuf[bufCount+3];  
+  pid->ki_integer  = ReadyToFlyBuf[bufCount+4];   
+  pid->ki_decimalL = ReadyToFlyBuf[bufCount+5];  
+  pid->ki_decimalH = ReadyToFlyBuf[bufCount+6];  
+  pid->kd_integer  = ReadyToFlyBuf[bufCount+7];  
+  pid->kd_decimalL = ReadyToFlyBuf[bufCount+8];  
+  pid->kd_decimalH = ReadyToFlyBuf[bufCount+9];  
 }
 
 void sumPidGain(PID *pid)
 {
+  float temp;
   pid->kp =  pid->kp_integer;
-  pid->kp += ((pid->kp_decimalH << 8) & (pid->kp_decimalL)) * 0.0001;
+  //temp = (float)pid->kp_decimalH << 8;
+  
+  
+  pid->kp += (float)((pid->kp_decimalH << 8) | (pid->kp_decimalL)) * 0.001;
   
   pid->ki =  pid->ki_integer;
-  pid->ki += ((pid->ki_decimalH << 8) & (pid->ki_decimalL)) * 0.0001;
+  pid->ki += (float)((pid->ki_decimalH << 8) | (pid->ki_decimalL)) * 0.001;
   
   pid->kd =  pid->kd_integer;
-  pid->kd += ((pid->kd_decimalH << 8) & (pid->kd_decimalL)) * 0.0001;
+  pid->kd += (float)((pid->kd_decimalH << 8) | (pid->kd_decimalL)) * 0.001;
 }
 
 void entPidGain()
 {
     int sum = 0;
-    for (int i=0;i<PIDGAINBUFFER-1;i++)
+    for (int i=0;i<READY_TO_FLY_BYTE-1;i++)
     {
-      sum += setPidGainBuf[i];
+      sum += ReadyToFlyBuf[i];
     }
     sum = (sum & 0xff) + (sum >> 8);
     
@@ -837,9 +840,9 @@ void entPidGain()
     
     // sum == 1 ok, sum != 1 not ok
     
-    setPidGainBuf[PIDGAINBUFFER-1];
+    ReadyToFlyBuf[READY_TO_FLY_BYTE-1];
     
-    sepPidGain(&pid0, 0);
+    sepPidGain(&pid0, -1);
     sepPidGain(&pid1, 8);
     sepPidGain(&pid2, 17);
     sepPidGain(&pid3, 26);
@@ -852,9 +855,7 @@ void entPidGain()
 }
         
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-
-    printf("a\r\n");
-    USART_ClearITPendingBit(&huart3, UART_IT_TC);
+  USART_ClearITPendingBit(&huart3, UART_IT_TC);
   /* consume the received character */
 /*
   if(huart == &huart3)
