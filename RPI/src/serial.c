@@ -75,7 +75,7 @@ void serial_readln(char *buffer, int len)
     }
 }
 
-void serial_close(void)
+void GPS_close(void)
 {
     close(uart0_filestream);
 }

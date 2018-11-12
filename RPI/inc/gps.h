@@ -21,7 +21,6 @@ extern void gps_location(loc_t *);
 
 
 // Turn off device (low-power consumption)
-extern void gps_off(void);
 
 // -------------------------------------------------------------------------
 // Internal functions

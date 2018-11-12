@@ -12,6 +12,6 @@ void serial_init(void);
 void serial_config(void);
 void serial_println(const char *, int);
 void serial_readln(char *, int);
-void serial_close(void);
+extern void GPS_close(void);
 
 #endif

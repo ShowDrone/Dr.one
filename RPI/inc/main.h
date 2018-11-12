@@ -11,6 +11,7 @@
 #include <mosquitto.h>
 #include <signal.h>
 #include <softPwm.h>
+#include <serial.h>
 #include "Sonar.h"
 #include "gps.h"
 #include "Mqtt.h"

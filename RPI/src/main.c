@@ -297,8 +297,9 @@ void setSeparate(ANGLE *axis) {
 }
 
 void INThandler(int sig) {
-	gps_off();
 	mq_close();
+	GPS_close();
+	ARM_close();
 	exit(0);
 }
 

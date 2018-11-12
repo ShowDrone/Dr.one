@@ -50,11 +50,6 @@ void gps_location(loc_t *coord) {
     }
 }
 
-void gps_off(void) {
-    //Write off
-    serial_close();
-}
-
 // Convert lat e lon to decimals (from deg)
 void gps_convert_deg_to_dec(double *latitude, char ns,  double *longitude, char we) {
     double lat = (ns == 'N') ? *latitude : -1 * (*latitude);

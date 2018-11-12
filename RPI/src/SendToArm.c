@@ -3,6 +3,7 @@
 #define FLYING_BYTE 18
 #define READY_TO_FLY_BYTE 39
 uint8_t checkSum(unsigned char *data, uint8_t len );
+void ARM_close();
 
 RPI rpi = { 0 };
 
@@ -11,10 +12,9 @@ uint8_t checkSum_Byte = 0;
 unsigned char ReadyToFlyBuf[READY_TO_FLY_BYTE] = {0,};
 unsigned char FlyingBuf[READY_TO_FLY_BYTE];
 char txBuf[READY_TO_FLY_BYTE] = "";
-bool startFlying = 0;
+bool startFlying = 1;
 bool takeoff = 0;
 int wlen;
-
 int set_interface_attribs(int slave_id, int speed)
 {
 	struct termios tty;
@@ -64,7 +64,9 @@ int ARM_Init(int _id) {
 	printf("ARM_Init Succeed\r\n");
 }
 
-
+void ARM_close() {
+	close(slave_id);
+}
 
  
 void send_Arm_ReadyToFly() {

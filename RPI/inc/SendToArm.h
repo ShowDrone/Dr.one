@@ -25,6 +25,7 @@ extern int ARM_Init(int _id);
 extern void lBeep();
 extern void send_Arm_ReadyToFly();
 extern void send_Arm_Flying();
+extern void ARM_close();
 
 #endif
 
