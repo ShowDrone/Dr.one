@@ -325,6 +325,10 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 			setSeparate(&dc3);
 			printf("dc3: %.3f %.3f %.3f\r\n", dc3.p, dc3.i, dc3.d);
 		}
+		if(getid == 4) {
+			s1 = strtok(NULL, ",");
+			startFlying = (int)atof(s1);
+		}
 		//int16_t testVariable = 0;
 		//testVariable = (dc0.pGain.decimalH << 8) | (dc0.pGain.decimalL);
 		//float ta = (float)testVariable / 10000;

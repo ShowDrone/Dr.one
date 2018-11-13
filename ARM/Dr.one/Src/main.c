@@ -93,6 +93,12 @@ PID pid1 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 PID pid2 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 PID pid3 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
+
+CONTROL roll       =  {0, 0, 0, 0, 0};
+CONTROL pitch      =  {0, 0, 0, 0, 0};
+CONTROL yaw        =  {0, 0, 0, 0, 0};
+CONTROL throttle   =  {0, 0, 0, 0, 0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,6 +126,12 @@ void setPidDC (PID *pid, CH *ch, DC *dc);
 void sepPidGain(PID *pid, int bufCount);
 void sumPidGain(PID *pid); 
 void entPidGain();
+
+void sepControl();
+void sumControl(CONTROL *control); 
+void entControl();
+
+
 float map(float x, float in_min, float in_max, float out_min, float out_max);
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte);
 void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
@@ -130,9 +142,16 @@ void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
 
 static int timer2Tick = 0;
 float targetDeg = 0.;
-int8_t Start_SetPidGain = 1;
+int8_t startFlying = 0;
 uint8_t ReadyToFlyBuf[READY_TO_FLY_BYTE];
 uint8_t Fill_ReadyToFlyBuf = 0;
+uint8_t Fill_FlyingBuf = 0;
+uint8_t FlyingBuf[FLYING_BYTE];
+uint8_t FlyingTempBuf[1];
+uint8_t ReadyToFlyTempBuf[1];
+volatile uint32_t ReadyToFlyCounter = 0;
+volatile uint32_t FlyingCounter = 0;
+int tempTest = 0;
 
 /* USER CODE END 0 */
 
@@ -200,26 +219,55 @@ int main(void)
   printf("Main\r\n");
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  
   while (1) 
-  {
+  {    
     
     
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-
-    while(Start_SetPidGain)
+    while(!startFlying)
     {
       HAL_UART_Receive_IT(&huart3, (uint8_t*)ReadyToFlyBuf, READY_TO_FLY_BYTE);
       if(Fill_ReadyToFlyBuf == 1) 
       {
         entPidGain();
-        Start_SetPidGain =ReadyToFlyBuf[READY_TO_FLY_BYTE-2];
+        startFlying =ReadyToFlyBuf[READY_TO_FLY_BYTE-2];
         printf("%.3f %.3f %.3f %.3f \r\n", pid0.kd, pid1.kd, pid2.kd, pid3.kd);
         Fill_ReadyToFlyBuf = 0;
       }
+      if(startFlying == 1)
+      {
+        HAL_UART_AbortReceive_IT(&huart3);
+        HAL_UART_AbortCpltCallback(&huart3);
+        HAL_UART_DeInit(&huart3);
+        HAL_UART_Init(&huart3);
+        HAL_Delay(500);
+        ReadyToFlyCounter = HAL_GetTick();
+      }
+ 
     }
+
+    if((HAL_GetTick()-ReadyToFlyCounter) < 1000)
+    {
+      for(int i=0;i<READY_TO_FLY_BYTE;i++)
+      {
+        ReadyToFlyTempBuf[0] = ReadyToFlyBuf[i];
+        if(i<FLYING_BYTE)
+          FlyingTempBuf[0] = FlyingBuf[i];
+      }
+    }
+    
+    HAL_UART_Receive_IT(&huart3, (uint8_t*)FlyingBuf, FLYING_BYTE);
+    if(Fill_FlyingBuf == 1) 
+    {
+      sepControl();
+      entControl();
+      printf(" %d %d %d \r\n", roll.target, pitch.target, throttle.target);
+      startFlying =FlyingBuf[FLYING_BYTE-2];
+      Fill_FlyingBuf = 0;
+    }
+    
     
     if(ch0.status == 1) 
     {
@@ -680,7 +728,6 @@ static void MX_USART3_UART_Init(void)
   huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart3.Init.OverSampling = UART_OVERSAMPLING_16;
   
-  HAL_UART_DeInit(&huart3);
   if (HAL_UART_Init(&huart3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -794,7 +841,7 @@ void setPidDC(PID *pid, CH *ch, DC *dc)
   pid->dt = 0.001;                                 
   pid->p = pid->err * pid->kp;                    
   pid->i += pid->err * pid->dt * pid->ki;
-  pid->i = (pid->i > 20.) ? 20. : pid->i;      
+  pid->i = (pid->i > 20.) ? 20. : pid->i;       
   pid->i = (pid->i < -20.) ? -20. : pid->i;
   pid->d = pid->kd * (pid->de / pid->dt);      
   pid->control = pid->p + pid->i + pid->d;       
@@ -822,9 +869,6 @@ void sumPidGain(PID *pid)
 {
   float temp;
   pid->kp =  pid->kp_integer;
-  //temp = (float)pid->kp_decimalH << 8;
-  
-  
   pid->kp += (float)((pid->kp_decimalH << 8) | (pid->kp_decimalL)) * 0.001;
   
   pid->ki =  pid->ki_integer;
@@ -858,43 +902,70 @@ void entPidGain()
     sumPidGain(&pid1);
     sumPidGain(&pid2);
     sumPidGain(&pid3);
-  
+}
+
+
+void sepControl()
+{
+  roll.target     = FlyingBuf[0];
+  pitch.target    = FlyingBuf[1];
+  yaw.target      = FlyingBuf[2];
+  throttle.target = FlyingBuf[3];
+  yaw.integerL = FlyingBuf[4];
+  yaw.integerH = FlyingBuf[5];
+  yaw.decimalL = FlyingBuf[6];
+  yaw.decimalH = FlyingBuf[7];
+  startFlying  = FlyingBuf[FLYING_BYTE-2]; 
+}
+
+void sumControl(CONTROL *control)
+{
+  control->target =  (control->integerH + control->integerL);
+  control->target += (float)((control->decimalH << 8) | (control->decimalL)) * 0.001;
+}
+
+void entControl()
+{
 }
         
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  
-  if(checkSum(ReadyToFlyBuf, READY_TO_FLY_BYTE-1,ReadyToFlyBuf[READY_TO_FLY_BYTE-1]) == 0) {
-    Fill_ReadyToFlyBuf = 1;
+  if(!startFlying) 
+  {
+    if(checkSum(ReadyToFlyBuf, READY_TO_FLY_BYTE-1,ReadyToFlyBuf[READY_TO_FLY_BYTE-1]) == 0) 
+    {
+      Fill_ReadyToFlyBuf = 1;
+    }
+  }
+  else 
+  {   
+    
+    if((HAL_GetTick() - ReadyToFlyCounter) < 1000)
+    {
+      for(int i=0;i<FLYING_BYTE;i++)
+      {
+        FlyingTempBuf[0] = FlyingBuf[i];
+      }
+    }
+    if(checkSum(FlyingBuf, FLYING_BYTE-1,FlyingBuf[FLYING_BYTE-1]) == 0)
+    {
+      Fill_FlyingBuf = 1;
+    }
   }
   USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
-  
-  /* consume the received character */
-/*
-  if(huart == &huart3)
-  {
-    
-    readCallback++;
-    
-    data.RxBuf[data.rx_point_head++] = myChar;
-    data.rx_point_head %= RBUF_SIZE;         
-  
-    reqReceived = 1;
-    
-  }  */
+ 
   
 }
-   
-     
+  
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte) {
-	uint16_t sum = 0;
-	uint8_t nibble = 0;
-	for(int i=0;i<len;i++) {
-		sum += data[i];
-	}
-	nibble = sum >> 8;
-	sum = (sum & 0xff) + nibble;
-	return ~(checkSumByte + sum);
+  uint16_t sum = 0;
+  uint8_t nibble = 0;
+  for(int i=0;i<len;i++) {
+    sum += data[i];
+  }
+  nibble = sum >> 8;
+  sum = (sum & 0xff) + nibble;
+  return ~(checkSumByte + sum);
 } 
      
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {

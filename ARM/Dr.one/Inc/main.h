@@ -122,7 +122,8 @@
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
 #define TXBUFFERSIZE          10
-#define READY_TO_FLY_BYTE     39          
+#define READY_TO_FLY_BYTE     39      
+#define FLYING_BYTE           11        
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
   
 #define CR1_PE_Set (0x0001)
@@ -174,6 +175,14 @@ typedef struct Pid {
   int16_t kd_decimalL;
   int16_t kd_decimalH;
 } PID;
+
+typedef struct Control {
+  uint8_t target;
+  uint8_t integerL;
+  uint8_t integerH;
+  uint8_t decimalL;
+  uint8_t decimalH;
+} CONTROL;
 
     
 /* USER CODE END Private defines */
