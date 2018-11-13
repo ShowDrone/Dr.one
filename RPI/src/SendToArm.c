@@ -1,6 +1,6 @@
 #include "SendToArm.h"
 
-#define FLYING_BYTE 18
+#define FLYING_BYTE 10
 #define READY_TO_FLY_BYTE 39
 uint8_t checkSum(unsigned char *data, uint8_t len );
 void ARM_close();
@@ -12,7 +12,7 @@ uint8_t checkSum_Byte = 0;
 unsigned char ReadyToFlyBuf[READY_TO_FLY_BYTE] = {0,};
 unsigned char FlyingBuf[READY_TO_FLY_BYTE];
 char txBuf[READY_TO_FLY_BYTE] = "";
-bool startFlying = 1;
+bool startFlying = 0;
 bool takeoff = 0;
 int wlen;
 int set_interface_attribs(int slave_id, int speed)
@@ -128,29 +128,25 @@ void send_Arm_ReadyToFly() {
 
 }
 void send_Arm_Flying() {
-	/*
-	FlyingBuf[0]  = roll.data.integerL;
-	FlyingBuf[1]  = roll.data.integerH;
-	FlyingBuf[2]  = roll.data.decimalL;
-	FlyingBuf[3]  = roll.data.decimalH;   
-	FlyingBuf[4]  = pitch.data.integerL;
-	FlyingBuf[5]  = pitch.data.integerH;
-	FlyingBuf[6]  = pitch.data.decimalL;
-	FlyingBuf[7]  = pitch.data.decimalH;   
-	FlyingBuf[8]  = yaw.data.integerL;
-	FlyingBuf[9]  = yaw.data.integerH;
-	FlyingBuf[10] = yaw.data.decimalL;
-	FlyingBuf[11] = yaw.data.decimalH;   
-	FlyingBuf[12] = roll.server;
-	FlyingBuf[13] = pitch.server;
-	FlyingBuf[14] = yaw.server;
-	FlyingBuf[15] = bldcSpeed;
-	FlyingBuf[16] = servo.mode;
+	FlyingBuf[0] = (int)floor(roll.server);
+	FlyingBuf[1] = (int)floor(pitch.server);
+	FlyingBuf[2] = (int)floor(yaw.server);
+	FlyingBuf[3] = (int)floor(bldcSpeed);
+	FlyingBuf[4]  = yaw.data.integerL;
+	FlyingBuf[5]  = yaw.data.integerH;
+	FlyingBuf[6] = yaw.data.decimalL;
+	FlyingBuf[7] = yaw.data.decimalH;   
+	FlyingBuf[8] = startFlying;
 	checkSum_Byte   = checkSum(FlyingBuf, FLYING_BYTE-1);
-	FlyingBuf[17] = checkSum_Byte;
-	for(int i=0; i<FLYING_BYTE;i++) {
-	wiringPiI2CWriteReg(slave_id, FlyingBuf[i]);
-	}*/
+	FlyingBuf[9] = checkSum_Byte;
+	
+	printf("%d %d %d %d %d %d %d \r\n", FlyingBuf[0],FlyingBuf[1],FlyingBuf[2], FlyingBuf[3],FlyingBuf[4],FlyingBuf[5],FlyingBuf[6],FlyingBuf[7]);
+	wlen = write(slave_id, FlyingBuf, FLYING_BYTE);
+	if (wlen != FLYING_BYTE) {
+	  printf("Error from write: %d, %d\n", wlen, errno);
+	}
+	tcdrain(slave_id);    /* delay for output */
+
 }
 
 uint8_t checkSum(unsigned char *data, uint8_t len ) {

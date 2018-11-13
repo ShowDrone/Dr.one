@@ -122,11 +122,11 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		msg=(char *)message->payload;
 
 		s1=strtok(msg,",");
-		roll.y=atof(s1);
+		roll.server=atof(s1);
 		s1=strtok(NULL,",");
-		pitch.y=atof(s1);
+		pitch.server=atof(s1);
 		s1=strtok(NULL,",");
-		yaw.y=atof(s1);
+		yaw.server=atof(s1);
 		s1=strtok(NULL,",");
 		bldcSpeed = atof(s1);
 		s1=strtok(NULL,",");
@@ -134,7 +134,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		s1=strtok(NULL,"\r");
 		servo.x = atof(s1);
 
-		printf("input : roll %f, pitch %f, yaw %f, bl %i, ser %f, ser %f\r\n",roll.y,pitch.y,yaw.y,bldcSpeed,servo.y,servo.x);	
+		printf("input : roll %f, pitch %f, yaw %f, bl %i, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
 	}
 
 	// PID GAIN, 스피드 등으로 return 해주는 코드		
@@ -328,6 +328,10 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		if(getid == 4) {
 			s1 = strtok(NULL, ",");
 			startFlying = (int)atof(s1);
+			ARM_close();
+			delay(50);
+			ARM_Init(0x30);
+			delay(100);
 		}
 		//int16_t testVariable = 0;
 		//testVariable = (dc0.pGain.decimalH << 8) | (dc0.pGain.decimalL);

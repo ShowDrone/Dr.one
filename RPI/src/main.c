@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
 	uint64_t rateTimerSonar, rateTimerGps;
 	uint64_t tok, tokold, toktime;
 	uint64_t sonarTimer, displayTimer;
-	uint64_t now; 
-	uint16_t fd;
+	uint64_t now;
+	int16_t fd;
 	float ref = 0;
 	int cnt = 0, tokcnt = 1;
 	bool sonarFlag = true;
@@ -125,8 +125,14 @@ int main(int argc, char **argv) {
 		setSeparate(&roll);
 		setSeparate(&pitch);
 		setSeparate(&yaw); 	
-		send_Arm_ReadyToFly();	
-
+		if(startFlying == 0) {
+			send_Arm_ReadyToFly();
+			printf("Ready\r\n");
+		}	
+		else {
+			send_Arm_Flying();
+			printf("Flying\r\n");	
+		}
 		softPwmWrite(SERVO_LANDING, servo.y);
 
 
