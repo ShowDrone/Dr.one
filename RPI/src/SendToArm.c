@@ -1,18 +1,14 @@
 #include "SendToArm.h"
 
-#define FLYING_BYTE 10
-#define READY_TO_FLY_BYTE 39
+#define SEND_TO_ARM_BYTE 45
 uint8_t checkSum(unsigned char *data, uint8_t len );
 void ARM_close();
 
 RPI rpi = { 0 };
 
 int slave_id;
-uint8_t checkSum_Byte = 0;     
-unsigned char ReadyToFlyBuf[READY_TO_FLY_BYTE] = {0,};
-unsigned char FlyingBuf[READY_TO_FLY_BYTE];
-char txBuf[READY_TO_FLY_BYTE] = "";
-bool startFlying = 0;
+uint8_t checkSum_Byte = 0;    
+unsigned char SendToArmBuf[SEND_TO_ARM_BYTE];
 bool takeoff = 0;
 int wlen;
 int set_interface_attribs(int slave_id, int speed)
@@ -69,84 +65,82 @@ void ARM_close() {
 }
 
  
-void send_Arm_ReadyToFly() {
+void sendToArm() {
 
 		
-	ReadyToFlyBuf[0]  = dc0.pGain.integerL;
-	ReadyToFlyBuf[1]  = dc0.pGain.decimalL;
-	ReadyToFlyBuf[2]  = dc0.pGain.decimalH;
-	ReadyToFlyBuf[3]  = dc0.iGain.integerL;
-	ReadyToFlyBuf[4]  = dc0.iGain.decimalL;
-	ReadyToFlyBuf[5]  = dc0.iGain.decimalH;
-	ReadyToFlyBuf[6]  = dc0.dGain.integerL;
-	ReadyToFlyBuf[7]  = dc0.dGain.decimalL;
-	ReadyToFlyBuf[8]  = dc0.dGain.decimalH;
-	ReadyToFlyBuf[9]  = dc1.pGain.integerL;
-	ReadyToFlyBuf[10] = dc1.pGain.decimalL;
-	ReadyToFlyBuf[11] = dc1.pGain.decimalH;
-	ReadyToFlyBuf[12] = dc1.iGain.integerL;
-	ReadyToFlyBuf[13] = dc1.iGain.decimalL;
-	ReadyToFlyBuf[14] = dc1.iGain.decimalH;
-	ReadyToFlyBuf[15] = dc1.dGain.integerL;
-	ReadyToFlyBuf[16] = dc1.dGain.decimalL;
-	ReadyToFlyBuf[17] = dc1.dGain.decimalH;
+	SendToArmBuf[0]  = dc0.pGain.integerL;
+	SendToArmBuf[1]  = dc0.pGain.decimalL;
+	SendToArmBuf[2]  = dc0.pGain.decimalH;
+	SendToArmBuf[3]  = dc0.iGain.integerL;
+	SendToArmBuf[4]  = dc0.iGain.decimalL;
+	SendToArmBuf[5]  = dc0.iGain.decimalH;
+	SendToArmBuf[6]  = dc0.dGain.integerL;
+	SendToArmBuf[7]  = dc0.dGain.decimalL;
+	SendToArmBuf[8]  = dc0.dGain.decimalH;
+	SendToArmBuf[9]  = dc1.pGain.integerL;
+	SendToArmBuf[10] = dc1.pGain.decimalL;
+	SendToArmBuf[11] = dc1.pGain.decimalH;
+	SendToArmBuf[12] = dc1.iGain.integerL;
+	SendToArmBuf[13] = dc1.iGain.decimalL;
+	SendToArmBuf[14] = dc1.iGain.decimalH;
+	SendToArmBuf[15] = dc1.dGain.integerL;
+	SendToArmBuf[16] = dc1.dGain.decimalL;
+	SendToArmBuf[17] = dc1.dGain.decimalH;
 	
-	ReadyToFlyBuf[18] = dc2.pGain.integerL;
-	ReadyToFlyBuf[19] = dc2.pGain.decimalL;
-	ReadyToFlyBuf[20] = dc2.pGain.decimalH;
-	ReadyToFlyBuf[21] = dc2.iGain.integerL;
-	ReadyToFlyBuf[22] = dc2.iGain.decimalL;
-	ReadyToFlyBuf[23] = dc2.iGain.decimalH;
-	ReadyToFlyBuf[24] = dc2.dGain.integerL;
-	ReadyToFlyBuf[25] = dc2.dGain.decimalL;
-	ReadyToFlyBuf[26] = dc2.dGain.decimalH;
+	SendToArmBuf[18] = dc2.pGain.integerL;
+	SendToArmBuf[19] = dc2.pGain.decimalL;
+	SendToArmBuf[20] = dc2.pGain.decimalH;
+	SendToArmBuf[21] = dc2.iGain.integerL;
+	SendToArmBuf[22] = dc2.iGain.decimalL;
+	SendToArmBuf[23] = dc2.iGain.decimalH;
+	SendToArmBuf[24] = dc2.dGain.integerL;
+	SendToArmBuf[25] = dc2.dGain.decimalL;
+	SendToArmBuf[26] = dc2.dGain.decimalH;
 	
-	ReadyToFlyBuf[27] = dc3.pGain.integerL;
-	ReadyToFlyBuf[28] = dc3.pGain.decimalL;
-	ReadyToFlyBuf[29] = dc3.pGain.decimalH;
-	ReadyToFlyBuf[30] = dc3.iGain.integerL;
-	ReadyToFlyBuf[31] = dc3.iGain.decimalL;
-	ReadyToFlyBuf[32] = dc3.iGain.decimalH;
-	ReadyToFlyBuf[33] = dc3.dGain.integerL;
-	ReadyToFlyBuf[34] = dc3.dGain.decimalL;
-	ReadyToFlyBuf[35] = dc3.dGain.decimalH;
+	SendToArmBuf[27] = dc3.pGain.integerL;
+	SendToArmBuf[28] = dc3.pGain.decimalL;
+	SendToArmBuf[29] = dc3.pGain.decimalH;
+	SendToArmBuf[30] = dc3.iGain.integerL;
+	SendToArmBuf[31] = dc3.iGain.decimalL;
+	SendToArmBuf[32] = dc3.iGain.decimalH;
+	SendToArmBuf[33] = dc3.dGain.integerL;
+	SendToArmBuf[34] = dc3.dGain.decimalL;
+	SendToArmBuf[35] = dc3.dGain.decimalH;
 	
-	ReadyToFlyBuf[37] = startFlying;
-	checkSum_Byte = checkSum(ReadyToFlyBuf, READY_TO_FLY_BYTE-1);
-	ReadyToFlyBuf[38] = checkSum_Byte;
+	SendToArmBuf[36] = (int)floor(roll.server);
+	SendToArmBuf[37] = (int)floor(pitch.server);
+	SendToArmBuf[38] = (int)floor(yaw.server);
+	SendToArmBuf[39] = (int)floor(bldcSpeed);
+	SendToArmBuf[40] = yaw.data.integerL;
+	SendToArmBuf[41] = yaw.data.integerH;
+	SendToArmBuf[42] = yaw.data.decimalL;
+	SendToArmBuf[43] = yaw.data.decimalH;  
+	checkSum_Byte = checkSum(SendToArmBuf, SEND_TO_ARM_BYTE-1);
+	SendToArmBuf[44] = checkSum_Byte;
 
-	//memcpy(txBuf, ReadyToFlyBuf, READY_TO_FLY_BYTE);
-	//printf("%d %d %d\r\n", ReadyToFlyBuf[0],ReadyToFlyBuf[2],ReadyToFlyBuf[3]);
 
-	printf("%d %d %d\r\n", ReadyToFlyBuf[0],ReadyToFlyBuf[1],ReadyToFlyBuf[2]);
-	wlen = write(slave_id, ReadyToFlyBuf, READY_TO_FLY_BYTE);
-	if (wlen != READY_TO_FLY_BYTE) {
+	//printf("%d %d %d\r\n", SendToArmBuf[0],SendToArmBuf[1],SendToArmBuf[2]);
+	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
+	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);
 	}
 	tcdrain(slave_id);    /* delay for output */
-
 
 }
-void send_Arm_Flying() {
-	FlyingBuf[0] = (int)floor(roll.server);
-	FlyingBuf[1] = (int)floor(pitch.server);
-	FlyingBuf[2] = (int)floor(yaw.server);
-	FlyingBuf[3] = (int)floor(bldcSpeed);
-	FlyingBuf[4]  = yaw.data.integerL;
-	FlyingBuf[5]  = yaw.data.integerH;
-	FlyingBuf[6] = yaw.data.decimalL;
-	FlyingBuf[7] = yaw.data.decimalH;   
-	FlyingBuf[8] = startFlying;
-	checkSum_Byte   = checkSum(FlyingBuf, FLYING_BYTE-1);
-	FlyingBuf[9] = checkSum_Byte;
-	
-	printf("%d %d %d %d %d %d %d \r\n", FlyingBuf[0],FlyingBuf[1],FlyingBuf[2], FlyingBuf[3],FlyingBuf[4],FlyingBuf[5],FlyingBuf[6],FlyingBuf[7]);
-	wlen = write(slave_id, FlyingBuf, FLYING_BYTE);
-	if (wlen != FLYING_BYTE) {
+
+void setZeroProp() {
+
+	SendToArmBuf[36] = 0;
+	SendToArmBuf[37] = 0;
+	SendToArmBuf[38] = 0;
+	SendToArmBuf[39] = 0;
+	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
+	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);
 	}
 	tcdrain(slave_id);    /* delay for output */
 
+	
 }
 
 uint8_t checkSum(unsigned char *data, uint8_t len ) {

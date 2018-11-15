@@ -72,5 +72,6 @@ extern PID   dc3;
 extern PID   bl;
 extern SERVO servo;
 extern float bldcSpeed;
+extern void setSeparatePID(PID *pid);
 
 #endif
