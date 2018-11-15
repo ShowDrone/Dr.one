@@ -17,5 +17,4 @@ extern void mq_init();
 extern void mq_start();
 extern int mq_send(const char *topic, const char *msg);
 extern void mq_close();
-
 #endif

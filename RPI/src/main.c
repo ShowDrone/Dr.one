@@ -37,8 +37,12 @@ void IMU_Init(); // IMU 초기화 함수
 void SONAR_Init(SONAR *sonar0, SONAR *sonar1); // 소나 초기화 함수
 void MQTT_Init(); // MQTT 초기화 함수
 void PI_Init();   // PI 세팅 초기화 함수
+void PIDGAIN_Init();
 void SERVO_Init();
-void setSeparate(ANGLE *axis);
+void readPidGain();
+void writePidGain();
+void setSeparateAngle(ANGLE *axis);
+void setSeparatePID(PID *pid);
 
 // 구조체 선언
 ANGLE pitch = {0,0,0,{0,0,0,0,0}};
@@ -51,16 +55,15 @@ PID   dc1   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc2   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc3   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
-
 PID   bl    = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
 float bldcSpeed = 0;	
-
+int fpidgain = 0;
+char fpidgainBuf[1024]; 
 RTIMU_DATA imuData;
 char *imuresult;
 RTIMUSettings *settings = new RTIMUSettings("RTIMULib");
 RTIMU *imu = RTIMU::createIMU(settings);
-			
 
 int main(int argc, char **argv) {
 		
@@ -92,9 +95,15 @@ int main(int argc, char **argv) {
 	SONAR_Init(&sonar0, &sonar1);			
 	SERVO_Init();
 	ARM_Init(0x30);
-	lidar.begin(0, 0x62);		
+	PIDGAIN_Init();
+	lidar.begin(0, 0x62);
+	readPidGain();	
+	setSeparatePID(&dc0);
+	setSeparatePID(&dc1);
+	setSeparatePID(&dc2);
+	setSeparatePID(&dc3);
+	setSeparatePID(&bl);
 	printf("Main\r\n");
-	
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
 
@@ -122,19 +131,11 @@ int main(int argc, char **argv) {
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
 		// 소수점 뗴기
 
-		setSeparate(&roll);
-		setSeparate(&pitch);
-		setSeparate(&yaw); 	
-		if(startFlying == 0) {
-			send_Arm_ReadyToFly();
-			printf("Ready\r\n");
-		}	
-		else {
-			send_Arm_Flying();
-			printf("Flying\r\n");	
-		}
+		setSeparateAngle(&roll);
+		setSeparateAngle(&pitch);
+		setSeparateAngle(&yaw); 	
+		sendToArm();
 		softPwmWrite(SERVO_LANDING, servo.y);
-
 
 		//lidar_distance = lidar.distance();
 
@@ -280,12 +281,19 @@ void PI_Init() {
 	}	
 }
 
+void PIDGAIN_Init() {
+	fpidgain = open("/home/pi/Dr.ONE/RPI/src/pidgain.txt", O_RDWR);
+	if(fpidgain == -1) {
+		printf("pidgain.txt open failed\r\n");
+	}
+}
+
 void SERVO_Init() {
 	softPwmCreate(SERVO_LANDING,0,500);
 }
 
 
-void setSeparate(ANGLE *axis) {
+void setSeparateAngle(ANGLE *axis) {
 	axis->data.temp = floor(axis->y);
 	if(abs(axis->data.temp) > 254) {
 		axis->data.integerL = 254;
@@ -297,13 +305,100 @@ void setSeparate(ANGLE *axis) {
 		
 	}
 	
-	axis->data.temp = (axis->y - axis->data.temp) * 10000;
+	axis->data.temp = (axis->y - axis->data.temp) * 1000;
 	axis->data.decimalL = (int)axis->data.temp & 0xff;
 	axis->data.decimalH = (int)axis->data.temp >> 8;
 }
 
+
+void setSeparatePID(PID *pid) {
+	pid->pGain.temp = floor(pid->p);
+	pid->iGain.temp = floor(pid->i);		
+	pid->dGain.temp = floor(pid->d);
+
+	pid->pGain.integerL = pid->pGain.temp;
+	pid->iGain.integerL = pid->iGain.temp;
+	pid->dGain.integerL = pid->dGain.temp;
+
+	pid->pGain.temp = (pid->p - pid->pGain.temp) * 1000;
+	pid->iGain.temp = (pid->i - pid->iGain.temp) * 1000;
+	pid->dGain.temp = (pid->d - pid->dGain.temp) * 1000;
+
+	pid->pGain.decimalL = (int)pid->pGain.temp & 0xff;
+	pid->iGain.decimalL = (int)pid->iGain.temp & 0xff;
+	pid->dGain.decimalL = (int)pid->dGain.temp & 0xff;
+
+	pid->pGain.decimalH = (int)pid->pGain.temp >> 8;
+	pid->iGain.decimalH = (int)pid->iGain.temp >> 8;
+	pid->dGain.decimalH = (int)pid->dGain.temp >> 8;
+}
+
+void readPidGain() {
+	char *s1;
+	read(fpidgain, fpidgainBuf, 1024);
+	s1 = strtok(fpidgainBuf, "=");
+	s1 = strtok(NULL, "\n");
+	dc0.p = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc0.i = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc0.d = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc1.p = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc1.i = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc1.d = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc2.p = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc2.i = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc2.d = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc3.p = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc3.i = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	dc3.d = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	bl.p = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	bl.i = atof(s1);
+	s1 = strtok(NULL, "=");
+	s1 = strtok(NULL, "\n");
+	bl.d = atof(s1);
+	close(fpidgain);
+	printf("a %f %f %f \r\n", dc0.p, dc0.i, dc0.d);
+}
+
+void writePidGain() {
+	PIDGAIN_Init();
+	sprintf(fpidgainBuf,
+	"dc0.kp=%f\ndc0.ki=%f\ndc0.kd=%f\ndc1.kp=%f\ndc1.ki=%f\ndc1.kd=%f\ndc2.kp=%f\ndc2.ki=%f\ndc2.kd=%f\ndc3.kp=%f\ndc3.ki=%f\ndc3.kd=%f\nbl.kp=%f\nbl.ki=%f\nbl.kd=%f\n",
+	dc0.p,dc0.i,dc0.d,dc1.p,dc1.i,dc1.d,dc2.p,dc2.i,dc2.d,dc3.p,dc3.i,dc3.d,bl.p,bl.i,bl.d);
+	PIDGAIN_Init();	
+	write(fpidgain, fpidgainBuf, strlen(fpidgainBuf));
+	close(fpidgain);
+}
+
 void INThandler(int sig) {
+	writePidGain();
 	mq_close();
+	setZeroProp();
 	GPS_close();
 	ARM_close();
 	exit(0);
