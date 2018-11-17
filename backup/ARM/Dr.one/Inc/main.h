@@ -122,8 +122,7 @@
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
 #define TXBUFFERSIZE          10
-#define READY_TO_FLY_BYTE     39      
-#define FLYING_BYTE           11        
+#define RECEIVE_FROM_RPI_BYTE     47     
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
   
 #define CR1_PE_Set (0x0001)
@@ -137,6 +136,10 @@ typedef struct Ch
    __IO float    angle;
    __IO float    data[3];
    __IO uint8_t   status;
+   __IO float    prev;
+   __IO float    lpf;
+   int           offset;
+   float          print;
 } CH;
 
 typedef struct Dc {
@@ -177,7 +180,8 @@ typedef struct Pid {
 } PID;
 
 typedef struct Control {
-  uint8_t target;
+  uint16_t target;
+  float angle;
   uint8_t integerL;
   uint8_t integerH;
   uint8_t decimalL;

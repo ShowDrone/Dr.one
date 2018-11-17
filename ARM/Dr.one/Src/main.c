@@ -81,10 +81,10 @@ BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin};
 BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin}; 
 
 //  ch0~3 = dc0~3
-CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};  // newv, oldv, width, angle, data[3], status
-CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};     
-CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};
-CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};
+CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0};  // newv, oldv, width, angle, data[3], status
+CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0};     
+CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
+CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
 
 // pid0~3 = dc0~3
 PID pid0 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
@@ -110,7 +110,6 @@ static void MX_ADC2_Init(void);
 static void MX_USART3_UART_Init(void);
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
-                                
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -128,7 +127,10 @@ void entReceiveBuf();
 
 float map(float x, float in_min, float in_max, float out_min, float out_max);
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte);
+void calEncoder(CH *ch);
 void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
+
+
 
 /* USER CODE END PFP */
 
@@ -139,6 +141,10 @@ int throttle = 0;
 float targetDeg = 0.;
 uint8_t ReceiveFromRpiBuf[RECEIVE_FROM_RPI_BYTE];
 uint8_t Fill_ReceiveFromRpi = 0;
+uint8_t ArmState = 0;
+float prev_p = 0;
+float prev_i = 0;
+float prev_d = 0;
 
 /* USER CODE END 0 */
 
@@ -191,14 +197,47 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor D
   
   // ESC Switch 490Hz Period     pulse width 0 ~ 2040
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
+  // HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
   
   // InputCaputre 0 ~ 7200 
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);           // Encoder A
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);           // Encoder B
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
+
+  HAL_FLASH_Unlock();
+  __IO uint16_t readTemp = *(__IO uint16_t *)PID0_KP;
+  pid0.kp = (float)readTemp / 1000;
+  readTemp = *(__IO uint16_t *)PID0_KI;
+  pid0.ki = (float)readTemp / 1000;
+  readTemp = *(__IO uint16_t *)PID0_KD;
+  pid0.kd = (float)readTemp / 1000;
   
+  readTemp = *(__IO uint16_t *)PID1_KP;
+  pid1.kp = (float)readTemp / 1000; 
+  readTemp = *(__IO uint16_t *)PID1_KI;
+  pid1.ki = (float)readTemp / 1000;
+  readTemp = *(__IO uint16_t *)PID1_KD;
+  pid1.kd = (float)readTemp / 1000;
+  
+  readTemp = *(__IO uint16_t *)PID2_KP;
+  pid2.kp = (float)readTemp / 1000;
+  readTemp = *(__IO uint16_t *)PID2_KI;
+  pid2.ki = (float)readTemp / 1000;
+  readTemp = *(__IO uint16_t *)PID2_KD;
+  pid2.kd = (float)readTemp / 1000;
+  
+  readTemp = *(__IO uint16_t *)PID3_KP;
+  pid3.kp = (float)readTemp / 1000; 
+  readTemp = *(__IO uint16_t *)PID3_KI;
+  pid3.ki = (float)readTemp / 1000;
+  readTemp = *(__IO uint16_t *)PID3_KD;
+  pid3.kd = (float)readTemp / 1000;
+  HAL_FLASH_Lock();
+
+  prev_p = pid1.kp;
+  prev_i = pid1.ki;
+  prev_d = pid1.kd;
   
   /* USER CODE END 2 */
   
@@ -207,8 +246,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1) 
   {    
-    
-    
+   
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -216,66 +254,73 @@ int main(void)
     if(Fill_ReceiveFromRpi == 1) 
     {
       entReceiveBuf();
-      //printf("%d %d %d %d\r\n", roll.target, pitch.target, yaw.target, dc3.setValue);
+      /*
+      if( (pid1.kp != prev_p) || (pid1.ki != prev_i) || (pid1.kd != prev_d))
+      {
+        TIM4->CCR4 = 200;
+        HAL_Delay(1000); 
+        TIM4->CCR4 = 0;
+        
+        prev_p = pid1.kp;
+        prev_i = pid1.ki;
+        prev_d = pid1.kd;
+        
+        
+        HAL_FLASH_Unlock();
+        static FLASH_EraseInitTypeDef EraseInitStruct;
+        EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+        EraseInitStruct.PageAddress = FLASH_USER_START_ADDR;
+        EraseInitStruct.NbPages     = (FLASH_USER_END_ADDR - FLASH_USER_START_ADDR) / FLASH_PAGE_SIZE;
+        uint32_t PAGEError = 0;
+        
+        HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+        
+        
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KP, ((uint16_t)(pid0.kp*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KI, ((uint16_t)(pid0.ki*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KD, ((uint16_t)(pid0.kd*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KP, ((uint16_t)(pid1.kp*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KI, ((uint16_t)(pid1.ki*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KD, ((uint16_t)(pid1.kd*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KP, ((uint16_t)(pid2.kp*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KI, ((uint16_t)(pid2.ki*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KD, ((uint16_t)(pid2.kd*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KP, ((uint16_t)(pid3.kp*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KI, ((uint16_t)(pid3.ki*1000)));
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KD, ((uint16_t)(pid3.kd*1000)));
+        
+        HAL_FLASH_Lock();
+        #define AIRCR_VECTKEY_MASK      (0x05FA0000)
+        SCB->AIRCR = AIRCR_VECTKEY_MASK|0x04;
+      }
+      */
+   
       Fill_ReceiveFromRpi = 0;
     }
    
     
     if(ch0.status == 1) 
-    {
-        ch0.status = 0;
-        if(ch0.angle >= 360.0)
-        {
-          ch0.angle = 359.95;
-        }
-    }
+      calEncoder(&ch0);         
     if(ch1.status == 1)
-    {
-        ch1.status = 0;
-        if(ch1.angle >= 360.0)
-        {
-          ch1.angle = 359.95;
-        }
-    }
-    
+      calEncoder(&ch1);
     if(ch2.status == 1)
-    {
-        ch2.status = 0;
-        if(ch2.angle >= 360.0)
-        {
-          ch2.angle = 359.95;
-        }
-    }
+      calEncoder(&ch2);
     if(ch3.status == 1)
-    {
-        ch3.status = 0;
-        if(ch3.angle >= 360.0)
-        {
-          ch3.angle = 359.95;
-        }
-    }
+      calEncoder(&ch3);
     
+    //printf("%f %f %f %f\n", ch0.angle, ch1.angle, ch2.angle, ch3.angle); 
     
-    
-    ch0.angle = ch0.width*0.05;     
-    ch1.angle = ch1.width*0.05;
-    ch2.angle = ch2.width*0.05;  
-    ch3.angle = ch3.width*0.05;
-    //printf("%.3f\r\n", ch3.angle);
-    printf("%f %f %f %f\n", ch0.angle, ch1.angle, ch2.angle, ch3.angle); 
-    
-    
-    //targetDeg = 300.;
+   
     
     // pid Control
-    //setPidDC(&pid0, &ch0, &dc0, 0);
-    //setPidDC(&pid1, &ch1, &dc1, 1);
-    //setPidDC(&pid2, &ch1, &dc2, 0);
+    setPidDC(&pid0, &ch0, &dc0, 0);
+    setPidDC(&pid1, &ch1, &dc1, 1);
+    setPidDC(&pid2, &ch2, &dc2, 0);
     setPidDC(&pid3, &ch3, &dc3, 1);
        
     /* DC  */
     // DC Motor Directrion, GPIO_PIN_RESET = +, GPIO_PIN_SET -
-    /*
+    
     if(dc0.setValue > 0)
         HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
     else
@@ -288,33 +333,23 @@ int main(void)
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
     else
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
-   if(dc3.setValue > 0) 
+    if(dc3.setValue > 0) 
         HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);
     else
         HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);  
-   */
    
-      
-   HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
-   HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
-   HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
-   HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
-   TIM2->CCR3 = 150;
-   TIM2->CCR4 = 150;
-   TIM4->CCR3 = 150;
-   TIM4->CCR4 = 150;
-   
+    
+
    //TIM4->CCR4 = 250;
   
    //printf("ch0 check : %.3f\n", ch0.angle);
    //printf("tim4 ccr3\r\n");
    
           
-   //TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
-   //printf("dc %d\r\n",dc1.setValue); 
-   //TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
-   //TIM2 -> CCR3 = abs(dc2.setValue); // DC_C
-   //TIM2 -> CCR4 = abs(dc3.setValue); // DC_D 
+   TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
+   TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
+   TIM2 -> CCR3 = abs(dc2.setValue); // DC_C
+   TIM2 -> CCR4 = abs(dc3.setValue); // DC_D 
    
 
    //printf("%d\t\n",  dc0.setValue);   //printf("%d\t",  dc1.setValue);  
@@ -822,19 +857,17 @@ void setPidDC(PID *pid, CH *ch, DC *dc, int axis)
       pid->err = 360 + temp;
   }
   else if ( temp >= 180) {
-      pid->err = 360 - temp;
+      pid->err = -(360 - temp);
   }
   else {
       pid->err = temp;
   }
-  //printf("ang: %.3f\t", ch->angle);
-  //printf("tmp: %.3f\n", pid->err);
   
   pid->de = pid->err - pid->err_prev;        
   pid->dt = 0.001;                                 
   pid->p = pid->err * pid->kp;                    
   pid->i += pid->err * pid->dt * pid->ki;
-  pid->control = constrain(pid->control,-20,20);
+  pid->i = constrain(pid->i,-30,30);
   pid->d = pid->kd * (pid->de / pid->dt);      
   pid->control = pid->p + pid->i + pid->d;       
  
@@ -872,21 +905,22 @@ void sumReceiveBuf(PID *pid)
 
 void entReceiveBuf()
 {
-  
     sepReceiveBuf(&pid0, -1);
     sepReceiveBuf(&pid1, 8);
     sepReceiveBuf(&pid2, 17);
     sepReceiveBuf(&pid3, 26);
     
     
-    roll.target     = ReceiveFromRpiBuf[36];
-    pitch.target    = ReceiveFromRpiBuf[37];
-    yaw.target      = ReceiveFromRpiBuf[38];
-    throttle        = ReceiveFromRpiBuf[39];
-    yaw.integerL    = ReceiveFromRpiBuf[40];
-    yaw.integerH    = ReceiveFromRpiBuf[41];
-    yaw.decimalL    = ReceiveFromRpiBuf[42];
-    yaw.decimalH    = ReceiveFromRpiBuf[43];
+    roll.target     = ReceiveFromRpiBuf[36] + ReceiveFromRpiBuf[37];
+    pitch.target    = ReceiveFromRpiBuf[38] + ReceiveFromRpiBuf[39];
+    yaw.target      = ReceiveFromRpiBuf[40];
+    throttle        = ReceiveFromRpiBuf[41];
+    yaw.integerL    = ReceiveFromRpiBuf[42];
+    yaw.integerH    = ReceiveFromRpiBuf[43];
+    yaw.decimalL    = ReceiveFromRpiBuf[44];
+    yaw.decimalH    = ReceiveFromRpiBuf[45];
+    
+    ArmState        = ReceiveFromRpiBuf[46];
     
     sumReceiveBuf(&pid0);
     sumReceiveBuf(&pid1);
@@ -910,8 +944,34 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   }
   USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
- 
+}
+
+void calEncoder(CH *ch) {
+    ch->angle = ch->width*0.05;
+    if(ch->angle >= 360.0)
+      ch->angle = 360.0;
+    if(ch->angle > 179.9)
+      ch->print = map(ch->angle,180.0,360.00,-179.99,-0.01);
+    else
+      ch->print = ch->angle;
+    ch->status = 0;        
   
+}
+
+float getMvAverage(__IO float *ch, __IO float value, int len)
+{
+    float sum = 0;
+    
+    for(int i=0;i<len-1;i++)
+      ch[i] = ch[i]+1;
+       
+    ch[len-1] = value; 
+    
+    for(int i=0;i<len;i++)
+      sum += ch[i];
+    
+    return sum / (float)len; 
+    
 }
   
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte) {
@@ -925,6 +985,8 @@ uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte) {
   return ~(checkSumByte + sum);
 } 
      
+
+
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 
   //UART_RxAgain(huart);
@@ -1031,7 +1093,6 @@ float map(float x, float in_min, float in_max, float out_min, float out_max)
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-// ?????? ??? ???? ???? ???, TIM 1a?¥ח? RISING, FALLING?? ??????? ???? ???
 void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity)
 { // ch(1,2,3,4), polarity 0: rise,high, 2: fall,low
   uint16_t c = TIM_CCER_CC1P << ((ch-1)*4);
@@ -1041,25 +1102,7 @@ void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity)
       tim->CCER |= c;
 }
 
-// 3???? ??????? ??? ??? ???? ???
-float getMvAverage(__IO float *ch, __IO float value, int len)
-{
-    float sum = 0;
-    
-    //  ??????? ??? ?????, ex ?עק[1]?? ??? ??????? ?עק [0]???? ???, 
-    for(int i=0;i<len-1;i++)
-      ch[i] = ch[i]+1;
-       
-    // ?עק ???????? ???¥ן? ?????? ????
-    ch[len-1] = value; 
-    
-    //  ??? ???? ??????? ???? ??????? ???
-    for(int i=0;i<len;i++)
-      sum += ch[i];
-    
-    return sum / (float)len; // ??? ??????? ?????? ????? ???? ???
-    
-}
+
 
 /* USER CODE END 4 */
 

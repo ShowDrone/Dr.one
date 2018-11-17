@@ -155,7 +155,6 @@ __vector_table
 ;; Default interrupt handlers.
 ;;
         THUMB
-
         PUBWEAK Reset_Handler
         SECTION .text:CODE:REORDER:NOROOT(2)
 Reset_Handler
