@@ -45,10 +45,10 @@ void setSeparateAngle(ANGLE *axis);
 void setSeparatePID(PID *pid);
 
 // 구조체 선언
-ANGLE pitch = {0,0,0,{0,0,0,0,0}};
-ANGLE roll  = {0,0,0,{0,0,0,0,0}};				
-ANGLE yaw   = {0,0,0,{0,0,0,0,0}};				
-ANGLE arm   = {0,0,0,{0,0,0,0,0}};			
+ANGLE pitch = {0,0,0,0,{0,0,0,0,0}};
+ANGLE roll  = {0,0,0,0,{0,0,0,0,0}};				
+ANGLE yaw   = {0,0,0,0,{0,0,0,0,0}};				
+ANGLE arm   = {0,0,0,0,{0,0,0,0,0}};			
 SERVO servo = {15,15,0};							
 PID   dc0   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 PID   dc1   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
@@ -124,6 +124,8 @@ int main(int argc, char **argv) {
 		imuresult=strtok(NULL,":");
 		imuresult=strtok(NULL,":");
 		yaw.y=atof(imuresult) + 180.; //yaw
+		yaw.y = yaw.y - yaw.prev;
+		yaw.prev = yaw.y;
 		tokold = micros();
 		//printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch.y, roll.y, yaw.y);
 
@@ -136,7 +138,6 @@ int main(int argc, char **argv) {
 		setSeparateAngle(&yaw); 	
 		sendToArm();
 		softPwmWrite(SERVO_LANDING, servo.y);
-
 		//lidar_distance = lidar.distance();
 
 		// FIXME, setValue에 값이 1이라면 pitch만 제어, 2라면 roll만 제어, 3이라면 yaw제어 , 4라면 전체 다 제어, [테스트 용도]
