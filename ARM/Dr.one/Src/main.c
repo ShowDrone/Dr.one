@@ -57,7 +57,6 @@ UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
-#define PIDGAINBUFFER 39
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -82,22 +81,20 @@ BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin};
 BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin}; 
 
 //  ch0~3 = dc0~3
-CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0};  // newv, oldv, width, angle, data[3], status
-CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0};     
-CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
-CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
+CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};  // newv, oldv, width, angle, data[3], status
+CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};     
+CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};
+CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0, 0};
 
 // pid0~3 = dc0~3
-PID pid0 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
-PID pid1 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid2 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid3 = {0.5, 0.1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid0 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
+PID pid1 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid2 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid3 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
-
-CONTROL roll       =  {0, 0, 0, 0, 0};
-CONTROL pitch      =  {0, 0, 0, 0, 0};
-CONTROL yaw        =  {0, 0, 0, 0, 0};
-CONTROL throttle   =  {0, 0, 0, 0, 0};
+CONTROL roll       =  {0, 0, 0, 0, 0, 0};
+CONTROL pitch      =  {0, 0, 0, 0, 0, 0};
+CONTROL yaw        =  {0, 0, 0, 0, 0, 0};
 
 /* USER CODE END PV */
 
@@ -121,15 +118,12 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 //  Falling Edge<-> Rising Edge
 static void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity);
 float getMvAverage(__IO float *ch, __IO float value, int len);
-void setPidBLDC (PID pid, BL bl);
-void setPidDC (PID *pid, CH *ch, DC *dc);
-void sepPidGain(PID *pid, int bufCount);
-void sumPidGain(PID *pid); 
-void entPidGain();
+void setPidBLDC (PID *pid, BL bl);
+void setPidDC (PID *pid, CH *ch, DC *dc, int axis);
 
-void sepControl();
-void sumControl(CONTROL *control); 
-void entControl();
+void sepReceiveBuf(PID *pid, int bufCount);
+void sumReceiveBuf(PID *pid); 
+void entReceiveBuf();
 
 
 float map(float x, float in_min, float in_max, float out_min, float out_max);
@@ -141,17 +135,10 @@ void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
 /* USER CODE BEGIN 0 */
 
 static int timer2Tick = 0;
+int throttle = 0;
 float targetDeg = 0.;
-int8_t startFlying = 0;
-uint8_t ReadyToFlyBuf[READY_TO_FLY_BYTE];
-uint8_t Fill_ReadyToFlyBuf = 0;
-uint8_t Fill_FlyingBuf = 0;
-uint8_t FlyingBuf[FLYING_BYTE];
-uint8_t FlyingTempBuf[1];
-uint8_t ReadyToFlyTempBuf[1];
-volatile uint32_t ReadyToFlyCounter = 0;
-volatile uint32_t FlyingCounter = 0;
-int tempTest = 0;
+uint8_t ReceiveFromRpiBuf[RECEIVE_FROM_RPI_BYTE];
+uint8_t Fill_ReceiveFromRpi = 0;
 
 /* USER CODE END 0 */
 
@@ -200,8 +187,8 @@ int main(void)
   // DC Motor 490Hz Period   pulse width 0 ~ 1020
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);             // DC Motor A
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);             // DC Motor B
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor C
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);             // DC Motor D
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);             // DC Motor C
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor D
   
   // ESC Switch 490Hz Period     pulse width 0 ~ 2040
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
@@ -212,7 +199,6 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
   
-  USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
   /* USER CODE END 2 */
   
@@ -226,69 +212,47 @@ int main(void)
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-    while(!startFlying)
+    HAL_UART_Receive_IT(&huart3, (uint8_t*)ReceiveFromRpiBuf, RECEIVE_FROM_RPI_BYTE);
+    if(Fill_ReceiveFromRpi == 1) 
     {
-      HAL_UART_Receive_IT(&huart3, (uint8_t*)ReadyToFlyBuf, READY_TO_FLY_BYTE);
-      if(Fill_ReadyToFlyBuf == 1) 
-      {
-        entPidGain();
-        startFlying =ReadyToFlyBuf[READY_TO_FLY_BYTE-2];
-        printf("%.3f %.3f %.3f %.3f \r\n", pid0.kd, pid1.kd, pid2.kd, pid3.kd);
-        Fill_ReadyToFlyBuf = 0;
-      }
-      if(startFlying == 1)
-      {
-        HAL_UART_AbortReceive_IT(&huart3);
-        HAL_UART_AbortCpltCallback(&huart3);
-        HAL_UART_DeInit(&huart3);
-        HAL_UART_Init(&huart3);
-        HAL_Delay(500);
-        ReadyToFlyCounter = HAL_GetTick();
-      }
- 
+      entReceiveBuf();
+      //printf("%d %d %d %d\r\n", roll.target, pitch.target, yaw.target, dc3.setValue);
+      Fill_ReceiveFromRpi = 0;
     }
-
-    if((HAL_GetTick()-ReadyToFlyCounter) < 1000)
-    {
-      for(int i=0;i<READY_TO_FLY_BYTE;i++)
-      {
-        ReadyToFlyTempBuf[0] = ReadyToFlyBuf[i];
-        if(i<FLYING_BYTE)
-          FlyingTempBuf[0] = FlyingBuf[i];
-      }
-    }
-    
-    HAL_UART_Receive_IT(&huart3, (uint8_t*)FlyingBuf, FLYING_BYTE);
-    if(Fill_FlyingBuf == 1) 
-    {
-      sepControl();
-      entControl();
-      printf(" %d %d %d \r\n", roll.target, pitch.target, throttle.target);
-      startFlying =FlyingBuf[FLYING_BYTE-2];
-      Fill_FlyingBuf = 0;
-    }
-    
+   
     
     if(ch0.status == 1) 
     {
-        getMvAverage(ch0.data, ch0.width, 3); 
         ch0.status = 0;
+        if(ch0.angle >= 360.0)
+        {
+          ch0.angle = 359.95;
+        }
     }
     if(ch1.status == 1)
     {
-        getMvAverage(ch1.data, ch1.width, 3);
         ch1.status = 0;
+        if(ch1.angle >= 360.0)
+        {
+          ch1.angle = 359.95;
+        }
     }
     
     if(ch2.status == 1)
     {
-        getMvAverage(ch2.data, ch2.width, 3); 
         ch2.status = 0;
+        if(ch2.angle >= 360.0)
+        {
+          ch2.angle = 359.95;
+        }
     }
     if(ch3.status == 1)
     {
-        getMvAverage(ch3.data, ch3.width, 3);
         ch3.status = 0;
+        if(ch3.angle >= 360.0)
+        {
+          ch3.angle = 359.95;
+        }
     }
     
     
@@ -297,50 +261,71 @@ int main(void)
     ch1.angle = ch1.width*0.05;
     ch2.angle = ch2.width*0.05;  
     ch3.angle = ch3.width*0.05;
+    //printf("%.3f\r\n", ch3.angle);
+    printf("%f %f %f %f\n", ch0.angle, ch1.angle, ch2.angle, ch3.angle); 
     
     
     //targetDeg = 300.;
     
     // pid Control
-    setPidDC(&pid0, &ch3, &dc0);
-    setPidDC(&pid1, &ch2, &dc1);
-    setPidDC(&pid2, &ch1, &dc2);
-    setPidDC(&pid3, &ch0, &dc3);
+    //setPidDC(&pid0, &ch0, &dc0, 0);
+    //setPidDC(&pid1, &ch1, &dc1, 1);
+    //setPidDC(&pid2, &ch1, &dc2, 0);
+    setPidDC(&pid3, &ch3, &dc3, 1);
        
     /* DC  */
-    // DC Motor Directrion, GPIO_PIN_RESET = inside, GPIO_PIN_SET = outside
-
+    // DC Motor Directrion, GPIO_PIN_RESET = +, GPIO_PIN_SET -
+    /*
     if(dc0.setValue > 0)
-        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
-    else
         HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
+    else
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
     if(dc1.setValue > 0) 
-        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);
     else
-        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);    
+        HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);    
     if(dc2.setValue > 0) 
-        HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
-    else
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
-    if(dc3.setValue > 0) 
-        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
     else
-        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
-   /* 
-    TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
-    TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
-    TIM2 -> CCR4 = abs(dc2.setValue); // DC_C
-    TIM2 -> CCR3 = abs(dc3.setValue); // DC_D 
+        HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
+   if(dc3.setValue > 0) 
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);
+    else
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);  
+   */
    
-    printf("%d\t",  dc0.setValue);   printf("%d\t",  dc1.setValue);  
-    printf("%d\t",  dc2.setValue);   printf("%d\t",  dc3.setValue); 
-    printf("\n");
+      
+   HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
+   HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_SET);
+   HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
+   HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
+   TIM2->CCR3 = 150;
+   TIM2->CCR4 = 150;
+   TIM4->CCR3 = 150;
+   TIM4->CCR4 = 150;
+   
+   //TIM4->CCR4 = 250;
+  
+   //printf("ch0 check : %.3f\n", ch0.angle);
+   //printf("tim4 ccr3\r\n");
+   
+          
+   //TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
+   //printf("dc %d\r\n",dc1.setValue); 
+   //TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
+   //TIM2 -> CCR3 = abs(dc2.setValue); // DC_C
+   //TIM2 -> CCR4 = abs(dc3.setValue); // DC_D 
+   
+
+   //printf("%d\t\n",  dc0.setValue);   //printf("%d\t",  dc1.setValue);  
+   //printf("%d\t",  dc2.setValue);   printf("%d\t",  dc3.setValue); 
+   //printf("\n");
     
-    printf("A:\t"); printf("%d\t",dc0.setValue); printf("%.3f\n", ch3.angle);
-    printf("B:\t"); printf("%d\t",dc1.setValue); printf("%.3f\n", ch2.angle);
-    printf("C:\t"); printf("%d\t",dc2.setValue); printf("%.3f\n", ch1.angle);
-    printf("D:\t"); printf("%d\t",dc3.setValue); printf("%.3f\n\n", ch0.angle); 
-   */ 
+   //printf("A:\t"); printf("%d\t",dc0.setValue); printf("%.3f\n", ch3.angle);
+   //printf("B:\t"); printf("%d\t",dc1.setValue); printf("%.3f\n", ch2.angle);
+   //printf("C:\t"); printf("%d\t",dc2.setValue); printf("%.3f\n", ch1.angle);
+   //printf("D:\t"); printf("%d\t",dc3.setValue); printf("%.3f\n\n", ch0.angle); 
+    
   }
   /* USER CODE END 3 */
 
@@ -576,9 +561,9 @@ static void MX_TIM2_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 71;
+  htim2.Init.Prescaler = 287;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2040;
+  htim2.Init.Period = 509;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
@@ -680,9 +665,9 @@ static void MX_TIM4_Init(void)
   TIM_OC_InitTypeDef sConfigOC;
 
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 71;
+  htim4.Init.Prescaler = 287;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 2040;
+  htim4.Init.Period = 509;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
@@ -806,43 +791,50 @@ static void MX_GPIO_Init(void)
 
 
 // TODO: targetDeg ??? rpi???? ???? YAW???? ?????????.
-void setPidBLDC(PID pid, BL bl)
+void setPidBLDC(PID *pid, BL bl)
 {
-  pid.err; //= targetDeg - ch.angle;
-  pid.de = pid.err - pid.err_prev;
-  pid.dt = 0.001;
-  pid.p = pid.err * pid.kp;
-  pid.i = pid.i + pid.err * pid.dt * pid.ki;
-  pid.i = (pid.i > 10.) ? 10. : pid.i;
-  pid.i = (pid.i < -10.) ? -10. : pid.i;
-  pid.d = pid.kd * (pid.de / pid.dt);
-  pid.control = pid.p + pid.i + pid.d;
-  pid.control = (pid.control > 1020.) ? 1020. : pid.control;
-  pid.control = (pid.control < -1020.) ? -1020. : pid.control;
-  pid.err_prev = pid.err;
+  pid->err = yaw.target - yaw.angle ;
+  pid->de = pid->err - pid->err_prev;
+  pid->dt = 0.001;
+  pid->p = pid->err * pid->kp;
+  pid->i = pid->i + pid->err * pid->dt * pid->ki;
+  pid->control = constrain(pid->control,-10,10);
+  pid->d = pid->kd * (pid->de / pid->dt);
+  pid->control = pid->p + pid->i + pid->d;
+  pid->control = constrain(pid->control,-100,100);
+  pid->err_prev = pid->err;
 }
 
 
-void setPidDC(PID *pid, CH *ch, DC *dc)
+void setPidDC(PID *pid, CH *ch, DC *dc, int axis)
 {
+  float temp;
+  if (axis == 0) // roll
+  {  
+    temp = roll.target - ch->angle;
+  }
+  else          // pitch
+  {
+    temp = pitch.target - ch->angle;
+  }
   
-  float temp = targetDeg - ch->angle;
   if(temp < -180) {
       pid->err = 360 + temp;
   }
   else if ( temp >= 180) {
-      pid->err = -360 + temp;
+      pid->err = 360 - temp;
   }
   else {
       pid->err = temp;
   }
+  //printf("ang: %.3f\t", ch->angle);
+  //printf("tmp: %.3f\n", pid->err);
   
   pid->de = pid->err - pid->err_prev;        
   pid->dt = 0.001;                                 
   pid->p = pid->err * pid->kp;                    
   pid->i += pid->err * pid->dt * pid->ki;
-  pid->i = (pid->i > 20.) ? 20. : pid->i;       
-  pid->i = (pid->i < -20.) ? -20. : pid->i;
+  pid->control = constrain(pid->control,-20,20);
   pid->d = pid->kd * (pid->de / pid->dt);      
   pid->control = pid->p + pid->i + pid->d;       
  
@@ -852,22 +844,21 @@ void setPidDC(PID *pid, CH *ch, DC *dc)
   pid->err_prev = pid->err;
 }
 
-void sepPidGain(PID *pid, int bufCount)
+void sepReceiveBuf(PID *pid, int bufCount)
 {
-  pid->kp_integer  = ReadyToFlyBuf[bufCount+1];  
-  pid->kp_decimalL = ReadyToFlyBuf[bufCount+2];  
-  pid->kp_decimalH = ReadyToFlyBuf[bufCount+3];  
-  pid->ki_integer  = ReadyToFlyBuf[bufCount+4];   
-  pid->ki_decimalL = ReadyToFlyBuf[bufCount+5];  
-  pid->ki_decimalH = ReadyToFlyBuf[bufCount+6];  
-  pid->kd_integer  = ReadyToFlyBuf[bufCount+7];  
-  pid->kd_decimalL = ReadyToFlyBuf[bufCount+8];  
-  pid->kd_decimalH = ReadyToFlyBuf[bufCount+9];  
+  pid->kp_integer  = ReceiveFromRpiBuf[bufCount+1];  
+  pid->kp_decimalL = ReceiveFromRpiBuf[bufCount+2];  
+  pid->kp_decimalH = ReceiveFromRpiBuf[bufCount+3];  
+  pid->ki_integer  = ReceiveFromRpiBuf[bufCount+4];   
+  pid->ki_decimalL = ReceiveFromRpiBuf[bufCount+5];  
+  pid->ki_decimalH = ReceiveFromRpiBuf[bufCount+6];  
+  pid->kd_integer  = ReceiveFromRpiBuf[bufCount+7];  
+  pid->kd_decimalL = ReceiveFromRpiBuf[bufCount+8];  
+  pid->kd_decimalH = ReceiveFromRpiBuf[bufCount+9];  
 }
 
-void sumPidGain(PID *pid)
+void sumReceiveBuf(PID *pid)
 {
-  float temp;
   pid->kp =  pid->kp_integer;
   pid->kp += (float)((pid->kp_decimalH << 8) | (pid->kp_decimalL)) * 0.001;
   
@@ -878,78 +869,44 @@ void sumPidGain(PID *pid)
   pid->kd += (float)((pid->kd_decimalH << 8) | (pid->kd_decimalL)) * 0.001;
 }
 
-void entPidGain()
+
+void entReceiveBuf()
 {
-    int sum = 0;
-    for (int i=0;i<READY_TO_FLY_BYTE-1;i++)
-    {
-      sum += ReadyToFlyBuf[i];
-    }
-    sum = (sum & 0xff) + (sum >> 8);
+  
+    sepReceiveBuf(&pid0, -1);
+    sepReceiveBuf(&pid1, 8);
+    sepReceiveBuf(&pid2, 17);
+    sepReceiveBuf(&pid3, 26);
     
-    sum = ~sum;
     
-    // sum == 1 ok, sum != 1 not ok
+    roll.target     = ReceiveFromRpiBuf[36];
+    pitch.target    = ReceiveFromRpiBuf[37];
+    yaw.target      = ReceiveFromRpiBuf[38];
+    throttle        = ReceiveFromRpiBuf[39];
+    yaw.integerL    = ReceiveFromRpiBuf[40];
+    yaw.integerH    = ReceiveFromRpiBuf[41];
+    yaw.decimalL    = ReceiveFromRpiBuf[42];
+    yaw.decimalH    = ReceiveFromRpiBuf[43];
     
-    ReadyToFlyBuf[READY_TO_FLY_BYTE-1];
+    sumReceiveBuf(&pid0);
+    sumReceiveBuf(&pid1);
+    sumReceiveBuf(&pid2);
+    sumReceiveBuf(&pid3);
     
-    sepPidGain(&pid0, -1);
-    sepPidGain(&pid1, 8);
-    sepPidGain(&pid2, 17);
-    sepPidGain(&pid3, 26);
+    yaw.angle = yaw.integerH + yaw.integerL;
+    yaw.angle += (float)((yaw.decimalH << 8) | (yaw.decimalL)) * 0.001;
     
-    sumPidGain(&pid0);
-    sumPidGain(&pid1);
-    sumPidGain(&pid2);
-    sumPidGain(&pid3);
+    //printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f \n", pid0.kp,pid0.ki,pid0.kd,pid1.kp,pid1.ki,pid1.kd,pid2.kp,pid2.ki,pid2.kd,pid3.kp,pid3.ki,pid3.kd);
+    
+    //printf("%d %d %d %d %f\r\n", roll.target, pitch.target, yaw.target, throttle, yaw.angle);
+    
 }
 
-
-void sepControl()
-{
-  roll.target     = FlyingBuf[0];
-  pitch.target    = FlyingBuf[1];
-  yaw.target      = FlyingBuf[2];
-  throttle.target = FlyingBuf[3];
-  yaw.integerL = FlyingBuf[4];
-  yaw.integerH = FlyingBuf[5];
-  yaw.decimalL = FlyingBuf[6];
-  yaw.decimalH = FlyingBuf[7];
-  startFlying  = FlyingBuf[FLYING_BYTE-2]; 
-}
-
-void sumControl(CONTROL *control)
-{
-  control->target =  (control->integerH + control->integerL);
-  control->target += (float)((control->decimalH << 8) | (control->decimalL)) * 0.001;
-}
-
-void entControl()
-{
-}
         
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  if(!startFlying) 
+  if(checkSum(ReceiveFromRpiBuf, RECEIVE_FROM_RPI_BYTE-1,ReceiveFromRpiBuf[RECEIVE_FROM_RPI_BYTE-1]) == 0) 
   {
-    if(checkSum(ReadyToFlyBuf, READY_TO_FLY_BYTE-1,ReadyToFlyBuf[READY_TO_FLY_BYTE-1]) == 0) 
-    {
-      Fill_ReadyToFlyBuf = 1;
-    }
-  }
-  else 
-  {   
-    
-    if((HAL_GetTick() - ReadyToFlyCounter) < 1000)
-    {
-      for(int i=0;i<FLYING_BYTE;i++)
-      {
-        FlyingTempBuf[0] = FlyingBuf[i];
-      }
-    }
-    if(checkSum(FlyingBuf, FLYING_BYTE-1,FlyingBuf[FLYING_BYTE-1]) == 0)
-    {
-      Fill_FlyingBuf = 1;
-    }
+    Fill_ReceiveFromRpi = 1;
   }
   USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
