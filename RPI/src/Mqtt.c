@@ -133,7 +133,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		s1=strtok(NULL,"\r");
 		servo.x = atof(s1);
 
-		printf("input : roll %f, pitch %f, yaw %f, bl %i, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
+		printf("input : roll %f, pitch %f, yaw %f, bl %f, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
 	}
 
 	// PID GAIN, 스피드 등으로 return 해주는 코드		

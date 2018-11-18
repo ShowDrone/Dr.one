@@ -137,7 +137,7 @@ void sendToArm() {
 	SendToArmBuf[47] = checkSum_Byte;
 
 
-	printf("%d %d %d\r\n", SendToArmBuf[36],SendToArmBuf[37],SendToArmBuf[2]);
+	//printf("%d %d %d\r\n", SendToArmBuf[36],SendToArmBuf[37],SendToArmBuf[2]);
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);

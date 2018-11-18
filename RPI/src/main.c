@@ -106,29 +106,38 @@ int main(int argc, char **argv) {
 	printf("Main\r\n");
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
-
+	float yaw_sum = 0;
+	float yaw_pre_sum = 0;
 	while (1) {
 	   	// imu로 9축 데이터 읽어 오는 곳
 		while(imu->IMURead()); 
 		imuData = imu->getIMUData();
-		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
+/*		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
 		imuresult=(char *)RTMath::displayDegrees("",imuData.fusionPose);
 		imuresult=strtok(imuresult,":");
 		imuresult=strtok(NULL,",");
-		roll.y =atof(imuresult)+180;  // roll
+		roll.y =atof(imuresult) + 180.;  // roll
 		imuresult=strtok(NULL,":");
 
 		imuresult=strtok(NULL,",");
-		pitch.y=atof(imuresult)+180; //pitch
+		pitch.y=atof(imuresult) + 180.; //pitch
 		
 		imuresult=strtok(NULL,":");
 		imuresult=strtok(NULL,":");
 		yaw.y=atof(imuresult) + 180.; //yaw
-		yaw.y = yaw.y - yaw.prev;
-		yaw.prev = yaw.y;
-		tokold = micros();
-		//printf("pitch: %3.3f roll: %3.3f yaw %3.3f\n", pitch.y, roll.y, yaw.y);
+*/		
 
+		RTVector3 gyro = imu->getGyro();
+		yaw.y = (float)gyro.z()*100;
+
+		yaw_sum = yaw.y*0.001 + yaw_pre_sum;
+		yaw_pre_sum = yaw_sum;
+
+		printf("%.5f\r\n", yaw_sum);
+
+		tokold = micros();
+		//printf("p: %.3f r: %.3f y %.3f\n", pitch.y, roll.y, yaw.y);
+		
 		
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
 		// 소수점 뗴기
