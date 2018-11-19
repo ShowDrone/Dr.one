@@ -57,7 +57,7 @@ PID   dc3   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
 PID   bl    = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
-float bldcSpeed = 0;	
+int bldcSpeed = 0;	
 int fpidgain = 0;
 char fpidgainBuf[1024]; 
 RTIMU_DATA imuData;
@@ -106,8 +106,14 @@ int main(int argc, char **argv) {
 	printf("Main\r\n");
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
-	float yaw_sum = 0;
-	float yaw_pre_sum = 0;
+	float biasZ = 0;
+	
+	for(int i=0;i<150;i++) {
+		while(imu->IMURead()); 
+		RTVector3 gyro = imu->getGyro();
+		biasZ += gyro.z();
+	}
+	biasZ /= 150;
 	while (1) {
 	   	// imu로 9축 데이터 읽어 오는 곳
 		while(imu->IMURead()); 
@@ -126,17 +132,16 @@ int main(int argc, char **argv) {
 		imuresult=strtok(NULL,":");
 		yaw.y=atof(imuresult) + 180.; //yaw
 */		
-
+		
+	
 		RTVector3 gyro = imu->getGyro();
-		yaw.y = (float)gyro.z()*100;
-
-		yaw_sum = yaw.y*0.001 + yaw_pre_sum;
-		yaw_pre_sum = yaw_sum;
-
-		printf("%.5f\r\n", yaw_sum);
+		yaw.y = (gyro.z()-biasZ);
+		//yaw_sum = yaw.y*0.001 + yaw_pre_sum;
+		//yaw_pre_sum = yaw_sum;
+		
 
 		tokold = micros();
-		//printf("p: %.3f r: %.3f y %.3f\n", pitch.y, roll.y, yaw.y);
+		//printf("p: %.3f r: %.3f y %.4f\n", pitch.y, roll.y, yaw.y);
 		
 		
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
@@ -147,6 +152,7 @@ int main(int argc, char **argv) {
 		setSeparateAngle(&yaw); 	
 		sendToArm();
 		softPwmWrite(SERVO_LANDING, servo.y);
+		//printf("Speed: %d\t yaw: %.3f\t\n", bldcSpeed, yaw.y);
 		//lidar_distance = lidar.distance();
 
 		// FIXME, setValue에 값이 1이라면 pitch만 제어, 2라면 roll만 제어, 3이라면 yaw제어 , 4라면 전체 다 제어, [테스트 용도]
