@@ -145,6 +145,10 @@
 #define PID3_KI      (FLASH_USER_START_ADDR+20)
 #define PID3_KD      (FLASH_USER_START_ADDR+22)
     
+#define PID4_KP      (FLASH_USER_START_ADDR+24)
+#define PID4_KI      (FLASH_USER_START_ADDR+26)
+#define PID4_KD      (FLASH_USER_START_ADDR+28)
+    
     
 //#define CR1_PE_Set (0x0001)
 //#define CR1_PE_Reset (0xFFFE)
