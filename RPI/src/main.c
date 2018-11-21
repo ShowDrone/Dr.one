@@ -50,12 +50,12 @@ ANGLE roll  = {0,0,0,0,{0,0,0,0,0}};
 ANGLE yaw   = {0,0,0,0,{0,0,0,0,0}};				
 ANGLE arm   = {0,0,0,0,{0,0,0,0,0}};			
 SERVO servo = {15,15,0};							
-PID   dc0   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   dc1   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   dc2   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
-PID   dc3   = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc0   = {7.75,6.5,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc1   = {50,1,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc2   = {30.5,0.25,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   dc3   = {60.0,3.25,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
-PID   bl    = {0,0,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
+PID   bl    = {1,1,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
 
 int bldcSpeed = 0;	
 int fpidgain = 0;
@@ -110,8 +110,8 @@ int main(int argc, char **argv) {
 	
 	for(int i=0;i<150;i++) {
 		while(imu->IMURead()); 
-		RTVector3 gyro = imu->getGyro();
-		biasZ += gyro.z();
+		//RTVector3 gyro = imu->getGyro();
+		//biasZ += gyro.z();
 	}
 	biasZ /= 150;
 	while (1) {
@@ -150,8 +150,7 @@ int main(int argc, char **argv) {
 		setSeparateAngle(&roll);
 		setSeparateAngle(&pitch);
 		setSeparateAngle(&yaw); 	
-		sendToArm();
-		softPwmWrite(SERVO_LANDING, servo.y);
+		//sendToArm();
 		//printf("Speed: %d\t yaw: %.3f\t\n", bldcSpeed, yaw.y);
 		//lidar_distance = lidar.distance();
 

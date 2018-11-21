@@ -121,22 +121,22 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		msg=(char *)message->payload;
 
 		s1=strtok(msg,",");
-		roll.server=atof(s1);
+		roll.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		pitch.server=atof(s1);
+		pitch.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		yaw.server=atof(s1);
+		yaw.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		bldcSpeed = (int)atof(s1);
+		bldcSpeed = atoi(s1)*255;
 		s1=strtok(NULL,",");
-		servo.y = atof(s1);
+		servo.y = atof(s1)*50;
 		s1=strtok(NULL,"\r");
-		servo.x = atof(s1);
-
-		printf("input : roll %f, pitch %f, yaw %f, bl %f, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
+		servo.x = atof(s1)*50;
+		
+		//printf("input : roll %d, pitch %d, yaw %d, bl %d, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
 	}
 
-	// PID GAIN, 스피드 등으로 return 해주는 코드		
+	// PID GAIN, return	
 	mosquitto_topic_matches_sub("pidrone/CMD/FG/get", message->topic, &match);
 	if (match) {
 		msg = (char *)message->payload;
