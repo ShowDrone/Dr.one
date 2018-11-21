@@ -110,14 +110,14 @@ int main(int argc, char **argv) {
 	
 	for(int i=0;i<150;i++) {
 		while(imu->IMURead()); 
-		//RTVector3 gyro = imu->getGyro();
-		//biasZ += gyro.z();
+		RTVector3 gyro = imu->getGyro();
+		biasZ += gyro.z();
 	}
 	biasZ /= 150;
 	while (1) {
 	   	// imu로 9축 데이터 읽어 오는 곳
-		while(imu->IMURead()); 
-		imuData = imu->getIMUData();
+		//while(imu->IMURead()); 
+		//imuData = imu->getIMUData();
 /*		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
 		imuresult=(char *)RTMath::displayDegrees("",imuData.fusionPose);
 		imuresult=strtok(imuresult,":");
@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
 		setSeparateAngle(&roll);
 		setSeparateAngle(&pitch);
 		setSeparateAngle(&yaw); 	
-		//sendToArm();
+		sendToArm();
 		//printf("Speed: %d\t yaw: %.3f\t\n", bldcSpeed, yaw.y);
 		//lidar_distance = lidar.distance();
 

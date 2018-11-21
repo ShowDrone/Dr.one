@@ -1,6 +1,6 @@
 #include "SendToArm.h"
 
-#define SEND_TO_ARM_BYTE 47
+#define SEND_TO_ARM_BYTE 56
 uint8_t checkSum(unsigned char *data, uint8_t len );
 void ARM_close();
 
@@ -107,21 +107,34 @@ void sendToArm() {
 	SendToArmBuf[33] = dc3.dGain.integerL;
 	SendToArmBuf[34] = dc3.dGain.decimalL;
 	SendToArmBuf[35] = dc3.dGain.decimalH;
-	SendToArmBuf[36] = roll.server;
-	SendToArmBuf[37] = pitch.server;
-	SendToArmBuf[38] = yaw.server;
-	SendToArmBuf[39] = bldcSpeed;
-	SendToArmBuf[40] = yaw.data.integerL;
-	SendToArmBuf[41] = yaw.data.integerH;
-	SendToArmBuf[42] = yaw.data.decimalL;
-	SendToArmBuf[43] = yaw.data.decimalH;
-	SendToArmBuf[44] = servo.y;
-	SendToArmBuf[45] = ArmState;  
+
+
+	SendToArmBuf[36] = bl.pGain.integerL;
+	SendToArmBuf[37] = bl.pGain.decimalL;
+	SendToArmBuf[38] = bl.pGain.decimalH;
+	SendToArmBuf[39] = bl.iGain.integerL;
+	SendToArmBuf[40] = bl.iGain.decimalL;
+	SendToArmBuf[41] = bl.iGain.decimalH;
+	SendToArmBuf[42] = bl.dGain.integerL;
+	SendToArmBuf[43] = bl.dGain.decimalL;
+	SendToArmBuf[44] = bl.dGain.decimalH;
+
+
+	SendToArmBuf[45] = roll.server;
+	SendToArmBuf[46] = pitch.server;
+	SendToArmBuf[47] = yaw.server;
+	SendToArmBuf[48] = bldcSpeed;
+	SendToArmBuf[49] = yaw.data.integerL;
+	SendToArmBuf[50] = yaw.data.integerH;
+	SendToArmBuf[51] = yaw.data.decimalL;
+	SendToArmBuf[52] = yaw.data.decimalH;
+	SendToArmBuf[53] = servo.y;
+	SendToArmBuf[54] = ArmState;  
 	checkSum_Byte = checkSum(SendToArmBuf, SEND_TO_ARM_BYTE-1);
-	SendToArmBuf[46] = checkSum_Byte;
+	SendToArmBuf[55] = checkSum_Byte;
 
 
-	//printf("%d %d %d\r\n", SendToArmBuf[36],SendToArmBuf[37],SendToArmBuf[2]);
+	//printf("%d %d %d %d\r\n", SendToArmBuf[36],SendToArmBuf[37],SendToArmBuf[38],SendToArmBuf[39]);
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);
@@ -137,7 +150,7 @@ void setZeroProp() {
 	SendToArmBuf[37] = 0;
 	SendToArmBuf[38] = 0;
 	SendToArmBuf[39] = 0;
-	SendToArmBuf[47] = ArmState;
+	SendToArmBuf[45] = ArmState;
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);

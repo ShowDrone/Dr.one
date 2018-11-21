@@ -333,7 +333,6 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		//testVariable = (dc0.pGain.decimalH << 8) | (dc0.pGain.decimalL);
 		//float ta = (float)testVariable / 10000;
 		//printf("dc0.data: %d %d %d %d %d %f\r\n", dc0.pGain.integerL, dc0.pGain.integerH, dc0.pGain.decimalL, dc0.pGain.decimalH,testVariable, ta);
-		
 	}
 	mosquitto_topic_matches_sub("pidrone/PID/BL", message->topic, &match);
 	if (match) {
