@@ -146,11 +146,11 @@ void sendToArm() {
 void setZeroProp() {
 	ArmState = 0; 
 
-	SendToArmBuf[36] = 0;
-	SendToArmBuf[37] = 0;
-	SendToArmBuf[38] = 0;
-	SendToArmBuf[39] = 0;
-	SendToArmBuf[45] = ArmState;
+	SendToArmBuf[45] = 45;
+	SendToArmBuf[46] = 45;
+	SendToArmBuf[47] = 45;
+	SendToArmBuf[48] = 0;
+	SendToArmBuf[54] = ArmState;
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);

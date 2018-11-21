@@ -1,2 +1,2 @@
 #!/bin/sh
-/home/pi/github/pidrone/src/bin/main
+/home/pi/Dr.ONE/RPI/src/bin/main

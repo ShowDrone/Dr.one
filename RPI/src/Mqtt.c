@@ -127,7 +127,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		s1=strtok(NULL,",");
 		yaw.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		bldcSpeed = atoi(s1)*255;
+		bldcSpeed = round(atof(s1)*255);
 		s1=strtok(NULL,",");
 		servo.y = atof(s1)*50;
 		s1=strtok(NULL,"\r");
