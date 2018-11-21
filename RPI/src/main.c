@@ -182,8 +182,6 @@ int main(int argc, char **argv) {
 			}
 		}
 
-
-
 		
 		/* GPS Data */
 		now = micros();
