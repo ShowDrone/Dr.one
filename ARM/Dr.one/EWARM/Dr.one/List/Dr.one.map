@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# IAR ELF Linker V8.22.1.15669/W32 for ARM                21/Nov/2018  23:50:49
+# IAR ELF Linker V8.22.1.15669/W32 for ARM                22/Nov/2018  00:43:11
 # Copyright 2007-2018 IAR Systems AB.
 #
 #    Output file  =  
@@ -8,7 +8,7 @@
 #    Map file     =  
 #        C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\List\Dr.one.map
 #    Command line =  
-#        -f C:\Users\SEUNGH~1\AppData\Local\Temp\EWD682.tmp
+#        -f C:\Users\SEUNGH~1\AppData\Local\Temp\EWC700.tmp
 #        (C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\main.o
 #        C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\startup_stm32f103xe.o
 #        C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj\stm32f1xx_hal.o
@@ -78,7 +78,7 @@ initialize by copy { rw };
   .intvec            ro code  0x08000000   0x130  startup_stm32f103xe.o [1]
                             - 0x08000130   0x130
 
-"P1":                                     0x44b5
+"P1":                                     0x44bd
   .text              ro code  0x08000130  0x11a4  main.o [1]
   .text              ro code  0x080012d4    0x24  stm32f1xx_hal.o [1]
   .text              ro code  0x080012f8   0x3d8  stm32f1xx_hal_uart.o [1]
@@ -223,8 +223,8 @@ initialize by copy { rw };
   .text              ro code  0x08004544     0x0  cstart_closeall.o [5]
   .rodata            const    0x08004544     0x0  zero_init3.o [5]
   .rodata            const    0x08004544     0x0  lz77_init_single.o [5]
-  Initializer bytes  const    0x08004544    0xa0  <for P2-1>
-                            - 0x080045e4  0x44b4
+  Initializer bytes  const    0x08004544    0xa8  <for P2-1>
+                            - 0x080045ec  0x44bc
 
 "P2", part 1 of 3:                         0x314
   P2-1                        0x20000000   0x314  <Init block>
@@ -276,8 +276,8 @@ Zero (__iar_zero_init3)
           0x20000314  0x398
 
 Copy/lz77 (__iar_lz77_init_single3)
-    1 source range, total size 0xa0 (20% of destination):
-          0x08004544   0xa0
+    1 source range, total size 0xa8 (21% of destination):
+          0x08004544   0xa8
     1 destination range, total size 0x314:
           0x20000000  0x314
 
@@ -290,9 +290,9 @@ Copy/lz77 (__iar_lz77_init_single3)
     Module                    ro code  ro data  rw data
     ------                    -------  -------  -------
 C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj: [1]
-    main.o                      4 516      106    1 108
+    main.o                      4 516      111    1 108
     startup_stm32f103xe.o         552
-    stm32f1xx_hal.o               168        2       12
+    stm32f1xx_hal.o               168        3       12
     stm32f1xx_hal_adc.o           620
     stm32f1xx_hal_cortex.o        230
     stm32f1xx_hal_dma.o           272
@@ -308,7 +308,7 @@ C:\Users\seunghyun\Desktop\Dr.ONE\ARM\Dr.one\EWARM\Dr.one\Obj: [1]
     stm32f1xx_it.o                 52
     system_stm32f1xx.o             92        9        4
     ---------------------------------------------------
-    Total:                     12 686      117    1 156
+    Total:                     12 686      123    1 156
 
 command line: [2]
     ---------------------------------------------------
@@ -329,7 +329,7 @@ dl7M_tlf.a: [3]
     putchar.o                      12
     xcloseall.o                    60
     xfgpos.o                       12
-    xfiles.o                                51      408
+    xfiles.o                                53      408
     xfofind.o                     124
     xfspos.o                      216
     xfwprep.o                     180
@@ -337,7 +337,7 @@ dl7M_tlf.a: [3]
     xprintftiny.o                 322
     xprout.o                       22
     ---------------------------------------------------
-    Total:                      1 994       51      548
+    Total:                      1 994       53      548
 
 m7M_tl.a: [4]
     DblAdd.o                      376
@@ -388,7 +388,7 @@ shb_l.a: [6]
     Gaps                           32                 4
     Linker created                          32    8 192
 -------------------------------------------------------
-    Grand Total:               17 692      200    9 900
+    Grand Total:               17 692      208    9 900
 
 
 *******************************************************************************
@@ -665,7 +665,7 @@ yaw                     0x200001b4    0xc  Data  Gb  main.o [1]
 [6] = shb_l.a
 
   17 692 bytes of readonly  code memory
-     200 bytes of readonly  data memory
+     208 bytes of readonly  data memory
    9 900 bytes of readwrite data memory
 
 Errors: none
