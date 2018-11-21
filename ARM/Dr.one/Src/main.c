@@ -1018,7 +1018,7 @@ void entReceiveBuf()
    
     
     //printf("%.3f %.3f %.3f \r\n", pid4.kp, pid4.ki, pid4.kd);
-    //printf("%d %d %d %d \r\n", roll.target, pitch.target, yaw.target, throttle);
+    printf("%d %d %d %d \r\n", roll.target, pitch.target, yaw.target, throttle);
     
 }
 
