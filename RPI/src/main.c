@@ -143,6 +143,7 @@ int main(int argc, char **argv) {
 		tokold = micros();
 		//printf("p: %.3f r: %.3f y %.4f\n", pitch.y, roll.y, yaw.y);
 		
+
 		
 		/* ARM으로 0~360의 데이터를 보내기 위해, 정수 부분을 2byte, 소수 부분을 2byte로 나누는 작업*/
 		// 소수점 뗴기
