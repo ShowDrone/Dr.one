@@ -75,6 +75,7 @@ DC dc0 = {DC_A_DIR_GPIO_Port, DC_A_PWM_GPIO_Port, DC_A_DIR_Pin, DC_A_PWM_Pin , 0
 DC dc1 = {DC_B_DIR_GPIO_Port, DC_B_PWM_GPIO_Port, DC_B_DIR_Pin, DC_B_PWM_Pin, 0};
 DC dc2 = {DC_C_DIR_GPIO_Port, DC_C_PWM_GPIO_Port, DC_C_DIR_Pin, DC_C_PWM_Pin, 0};
 DC dc3 = {DC_D_DIR_GPIO_Port, DC_D_PWM_GPIO_Port, DC_D_DIR_Pin, DC_D_PWM_Pin, 0};
+DC dc4 = {DC_E_DIR_GPIO_Port, DC_E_PWM_GPIO_Port, DC_E_DIR_Pin, DC_E_PWM_Pin, 0};
 
 // BLDC 
 BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin}; // ¹Ø
@@ -87,11 +88,11 @@ CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
 CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
 
 // pid0~3 = dc0~3
-PID pid0 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
-PID pid1 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid2 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid3 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid4 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid0 = {7.75, 6.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
+PID pid1 = {50, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid2 = {30.5, 0.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid3 = {60.0, 3.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid4 = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
 CONTROL roll       =  {0, 0, 0, 0, 0, 0};
 CONTROL pitch      =  {0, 0, 0, 0, 0, 0};
@@ -119,7 +120,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 static void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity);
 float getMvAverage(__IO float *ch, __IO float value, int len);
 void setPidBLDC (PID *pid);
-void setPidDC (PID *pid, CH *ch, DC *dc, int axis);
+void setPidDC(PID *pid, CH *ch, DC *dc, int axis);
 
 void sepReceiveBuf(PID *pid, int bufCount);
 void sumReceiveBuf(PID *pid); 
@@ -127,6 +128,7 @@ void entReceiveBuf();
 
 
 int map(int x, int in_min, int in_max, int out_min, int out_max);
+float map_float(float x, float in_min, float in_max, float out_min, float out_max);
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte);
 void calEncoder(CH *ch);
 void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
@@ -196,6 +198,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);             // DC Motor B
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);             // DC Motor C
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor D
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);             // DC Motor E
   
   // ESC Switch 490Hz Period     pulse width 0 ~ 2040
   // HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
@@ -206,10 +209,25 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
  
-  
+  /*
   TIM1->CCR1 = 1000;
   TIM1->CCR2 = 1000;
   
+  pid0.kp = 7.75;
+  pid0.ki = 6.5;
+  pid0.kd = 0.0;
+  
+  pid1.kp = 50.0;
+  pid1.ki = 1.0;
+  pid1.kd = 0.0;
+  
+  pid2.kp = 30.5;
+  pid2.ki = 0.25;
+  pid2.kd = 0.0;
+  
+  pid3.kp = 60.0;
+  pid3.ki = 3.25;
+  pid3.kd = 0.0;*/
   
   HAL_FLASH_Unlock();
   __IO uint16_t readTemp = *(__IO uint16_t *)PID0_KP;
@@ -254,7 +272,7 @@ int main(void)
   prev_d = pid4.kd;
   
   /* USER CODE END 2 */
-  printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f", pid0.kp, pid0.ki, pid0.kd, pid1.kp, pid1.ki, pid1.kd, pid2.kp, pid2.ki, pid2.kd);
+  //printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n", pid0.kp, pid0.ki, pid0.kd, pid1.kp, pid1.ki, pid1.kd, pid2.kp, pid2.ki, pid2.kd);
   printf("Main\r\n");
   HAL_Delay(3000);
   /* Infinite loop */
@@ -278,7 +296,7 @@ int main(void)
         prev_p = pid4.kp;
         prev_i = pid4.ki;
         prev_d = pid4.kd;
-        
+       
         
         HAL_FLASH_Unlock();
         static FLASH_EraseInitTypeDef EraseInitStruct;
@@ -310,38 +328,41 @@ int main(void)
         #define AIRCR_VECTKEY_MASK      (0x05FA0000)
         SCB->AIRCR = AIRCR_VECTKEY_MASK|0x04;
       }
-      printf("%d\r\n",throttle);
       Fill_ReceiveFromRpi = 0;
     }
    
     
-    if(ch0.status == 1) 
-      calEncoder(&ch0);         
+    if(ch0.status == 1) {
+      calEncoder(&ch0);  
+      ch0.angle = map_float(ch0.angle,0.,360.,360.,0.);
+    }
     if(ch1.status == 1)
       calEncoder(&ch1);
     if(ch2.status == 1)
       calEncoder(&ch2);
-    if(ch3.status == 1)
+    if(ch3.status == 1) {
       calEncoder(&ch3);
+      ch3.angle = map_float(ch3.angle,0.,360.,360.,0.);
+    }
     
-    //printf("%f %f %f %f\n", ch0.angle, ch1.angle, ch2.angle, ch3.angle); 
     
    
     
     // pid Control
-    setPidDC(&pid0, &ch0, &dc0, 0);
-    setPidDC(&pid1, &ch1, &dc1, 1);
-    setPidDC(&pid2, &ch2, &dc2, 0);
-    setPidDC(&pid3, &ch3, &dc3, 1);
+    setPidDC(&pid0, &ch0, &dc0, 1);
+    setPidDC(&pid1, &ch1, &dc1, 0);
+    setPidDC(&pid2, &ch2, &dc2, 1);
+    setPidDC(&pid3, &ch3, &dc3, 0);
     setPidBLDC(&pid4);
-       
+   
+    
     /* DC  */
     // DC Motor Directrion, GPIO_PIN_RESET = +, GPIO_PIN_SET -
     
     if(dc0.setValue > 0)
-        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
-    else
         HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
     if(dc1.setValue > 0) 
         HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);
     else
@@ -351,14 +372,11 @@ int main(void)
     else
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
     if(dc3.setValue > 0) 
-        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
     else
-        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);  
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
    
     
-
-   //TIM4->CCR4 = 250;
-  
    //printf("ch0 check : %.3f\n", ch0.angle);
    //printf("tim4 ccr3\r\n");
    
@@ -396,7 +414,14 @@ int main(void)
       TIM1 -> CCR2 = 1100 + bl1.setValue;                        // À§
    }
 
-   
+   if(dc4.setValue > 127) {
+      HAL_GPIO_WritePin(DC_E_DIR_GPIO_Port, DC_E_DIR_Pin, GPIO_PIN_RESET);
+      TIM2->CCR2 = map(dc4.setValue - 128, 0, 127, 0, 500);
+   }
+   else {
+      HAL_GPIO_WritePin(DC_E_DIR_GPIO_Port, DC_E_DIR_Pin, GPIO_PIN_SET);
+      TIM2->CCR2 = map(dc4.setValue, 0, 127, 0, 500);
+   }
   
     
 
@@ -865,9 +890,6 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   
-  
-  
-  
 }
 
 /* USER CODE BEGIN 4 */
@@ -892,9 +914,10 @@ void setPidBLDC(PID *pid)
 void setPidDC(PID *pid, CH *ch, DC *dc, int axis)
 {
   float temp;
+  
   if (axis == 0) // roll
   {  
-    temp = roll.target - ch->angle;
+      temp = roll.target - ch->angle;
   }
   else          // pitch
   {
@@ -957,31 +980,45 @@ void entReceiveBuf()
     sepReceiveBuf(&pid1, 8);
     sepReceiveBuf(&pid2, 17);
     sepReceiveBuf(&pid3, 26);
+    sepReceiveBuf(&pid4, 35);
     
     
-    roll.target     = ReceiveFromRpiBuf[36] + ReceiveFromRpiBuf[37];
-    pitch.target    = ReceiveFromRpiBuf[38] + ReceiveFromRpiBuf[39];
-    yaw.target      = ReceiveFromRpiBuf[40];
-    throttle        = ReceiveFromRpiBuf[41];
-    yaw.integerL    = ReceiveFromRpiBuf[42];
-    yaw.integerH    = ReceiveFromRpiBuf[43];
-    yaw.decimalL    = ReceiveFromRpiBuf[44];
-    yaw.decimalH    = ReceiveFromRpiBuf[45];
-    
-    ArmState        = ReceiveFromRpiBuf[46];
+    roll.target     = ReceiveFromRpiBuf[45];
+    pitch.target    = ReceiveFromRpiBuf[46];
+    yaw.target      = ReceiveFromRpiBuf[47];
+    throttle        = ReceiveFromRpiBuf[48];
+    yaw.integerL    = ReceiveFromRpiBuf[49];
+    yaw.integerH    = ReceiveFromRpiBuf[50];
+    yaw.decimalL    = ReceiveFromRpiBuf[51];
+    yaw.decimalH    = ReceiveFromRpiBuf[52];
+    dc4.setValue    = ReceiveFromRpiBuf[53];
+    ArmState        = ReceiveFromRpiBuf[54];
     
     sumReceiveBuf(&pid0);
     sumReceiveBuf(&pid1);
     sumReceiveBuf(&pid2);
     sumReceiveBuf(&pid3);
+    sumReceiveBuf(&pid4);
     
     throttle = map(throttle,0,255,0,875);
     yaw.angle = yaw.integerH + yaw.integerL;
+    
+    roll.target = map(roll.target,0,90,-45,45);
+    pitch.target = map(pitch.target,0,90,-45,45);
+    yaw.target = map(yaw.target,0,90,-45,45);
+  
+    if(roll.target <= -1)
+      roll.target  = roll.target+360;
+    if(pitch.target <= -1)
+      pitch.target = pitch.target + 360;
+    if(yaw.target <= -1)
+      yaw.target = yaw.target + 360;
+ 
     yaw.angle += (float)((yaw.decimalH << 8) | (yaw.decimalL)) * 0.001;
+   
     
-    //printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f \n", pid0.kp,pid0.ki,pid0.kd,pid1.kp,pid1.ki,pid1.kd,pid2.kp,pid2.ki,pid2.kd,pid3.kp,pid3.ki,pid3.kd);
-    
-    //printf("%d %d %d %d %f\r\n", roll.target, pitch.target, yaw.target, throttle, yaw.angle);
+    //printf("%.3f %.3f %.3f \r\n", pid4.kp, pid4.ki, pid4.kd);
+    //printf("%d %d %d %d \r\n", roll.target, pitch.target, yaw.target, throttle);
     
 }
 
@@ -1138,6 +1175,11 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 }
 
 int map(int x, int in_min, int in_max, int out_min, int out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+float map_float(float x, float in_min, float in_max, float out_min, float out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }

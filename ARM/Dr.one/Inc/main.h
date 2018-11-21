@@ -122,12 +122,12 @@
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
 #define TXBUFFERSIZE          10
-#define RECEIVE_FROM_RPI_BYTE     48    
+#define RECEIVE_FROM_RPI_BYTE     56
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
-#define ADDR_FLASH_PAGE_30       ((uint32_t)0x08007800)
-#define FLASH_USER_START_ADDR   ADDR_FLASH_PAGE_30
-#define FLASH_USER_END_ADDR   ADDR_FLASH_PAGE_30 + FLASH_PAGE_SIZE
+#define ADDR_FLASH_PAGE_28 ((uint32_t)0x08007000)
+#define FLASH_USER_START_ADDR   ADDR_FLASH_PAGE_28
+#define FLASH_USER_END_ADDR   ADDR_FLASH_PAGE_28 + FLASH_PAGE_SIZE
 
 #define PID0_KP      (FLASH_USER_START_ADDR)
 #define PID0_KI      (FLASH_USER_START_ADDR+2)
@@ -205,7 +205,7 @@ typedef struct Pid {
 } PID;
 
 typedef struct Control {
-  uint16_t target;
+  int16_t target;
   float angle;
   uint8_t integerL;
   uint8_t integerH;
