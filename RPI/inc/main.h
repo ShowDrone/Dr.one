@@ -47,7 +47,7 @@ typedef struct Apart {
 } APART;
 
 typedef struct Angle {
-    float server;
+    int server;
     float y;
     float prev;
     float bias;
