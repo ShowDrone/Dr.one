@@ -45,9 +45,9 @@ void setSeparateAngle(ANGLE *axis);
 void setSeparatePID(PID *pid);
 
 // 구조체 선언
-ANGLE pitch = {0,0,0,0,{0,0,0,0,0}};
-ANGLE roll  = {0,0,0,0,{0,0,0,0,0}};				
-ANGLE yaw   = {0,0,0,0,{0,0,0,0,0}};				
+ANGLE pitch = {45,0,0,0,{0,0,0,0,0}};
+ANGLE roll  = {45,0,0,0,{0,0,0,0,0}};				
+ANGLE yaw   = {45,0,0,0,{0,0,0,0,0}};				
 ANGLE arm   = {0,0,0,0,{0,0,0,0,0}};			
 SERVO servo = {15,15,0};							
 PID   dc0   = {7.75,6.5,0,{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}};
