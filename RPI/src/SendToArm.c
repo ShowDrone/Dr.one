@@ -1,6 +1,7 @@
 #include "SendToArm.h"
 
-#define SEND_TO_ARM_BYTE 56
+#define SEND_TO_ARM_BYTE 20
+//#define SEND_TO_ARM_BYTE 56
 uint8_t checkSum(unsigned char *data, uint8_t len );
 void ARM_close();
 
@@ -67,7 +68,7 @@ void ARM_close() {
 
  
 void sendToArm() {
-
+/*
 		
 	SendToArmBuf[0]  = dc0.pGain.integerL;
 	SendToArmBuf[1]  = dc0.pGain.decimalL;
@@ -132,6 +133,29 @@ void sendToArm() {
 	SendToArmBuf[54] = ArmState;  
 	checkSum_Byte = checkSum(SendToArmBuf, SEND_TO_ARM_BYTE-1);
 	SendToArmBuf[55] = checkSum_Byte;
+*/	
+	SendToArmBuf[0] = bl.pGain.integerL;
+	SendToArmBuf[1] = bl.pGain.decimalL;
+	SendToArmBuf[2] = bl.pGain.decimalH;
+	SendToArmBuf[3] = bl.iGain.integerL;
+	SendToArmBuf[4] = bl.iGain.decimalL;
+	SendToArmBuf[5] = bl.iGain.decimalH;
+	SendToArmBuf[6] = bl.dGain.integerL;
+	SendToArmBuf[7] = bl.dGain.decimalL;
+	SendToArmBuf[8] = bl.dGain.decimalH;
+
+	SendToArmBuf[9] = roll.server;
+	SendToArmBuf[10] = pitch.server;
+	SendToArmBuf[11] = yaw.server;
+	SendToArmBuf[12] = bldcSpeed;
+	SendToArmBuf[13] = yaw.data.integerL;
+	SendToArmBuf[14] = yaw.data.integerH;
+	SendToArmBuf[15] = yaw.data.decimalL;
+	SendToArmBuf[16] = yaw.data.decimalH;
+	SendToArmBuf[17] = servo.y;
+	SendToArmBuf[18] = ArmState;  
+	checkSum_Byte = checkSum(SendToArmBuf, SEND_TO_ARM_BYTE-1);
+	SendToArmBuf[19] = checkSum_Byte;
 
 
 	//printf("%d %d %d %d\r\n", SendToArmBuf[36],SendToArmBuf[37],SendToArmBuf[38],SendToArmBuf[39]);
@@ -146,11 +170,19 @@ void sendToArm() {
 void setZeroProp() {
 	ArmState = 0; 
 
-	SendToArmBuf[45] = 45;
+	SendToArmBuf[9] = 45;
+	SendToArmBuf[10] = 45;
+	SendToArmBuf[11] = 45;
+	SendToArmBuf[12] = 0;;
+	SendToArmBuf[17] = 0;
+	SendToArmBuf[18] = ArmState;
+
+	/*SendToArmBuf[45] = 45;
 	SendToArmBuf[46] = 45;
 	SendToArmBuf[47] = 45;
 	SendToArmBuf[48] = 0;
-	SendToArmBuf[54] = ArmState;
+	SendToArmBuf[48] = 0;
+	SendToArmBuf[53] = ArmState;*/
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);

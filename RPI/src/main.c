@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
 	biasZ /= 150;
 	while (1) {
 	   	// imu로 9축 데이터 읽어 오는 곳
-		//while(imu->IMURead()); 
-		//imuData = imu->getIMUData();
+		while(imu->IMURead()); 
+		imuData = imu->getIMUData();
 /*		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
 		imuresult=(char *)RTMath::displayDegrees("",imuData.fusionPose);
 		imuresult=strtok(imuresult,":");
@@ -135,11 +135,11 @@ int main(int argc, char **argv) {
 		
 	
 		RTVector3 gyro = imu->getGyro();
-		yaw.y = (gyro.z()-biasZ);
+		yaw.y = (gyro.z()-biasZ)+255;
 		//yaw_sum = yaw.y*0.001 + yaw_pre_sum;
 		//yaw_pre_sum = yaw_sum;
 		
-
+		//printf("%f\r\n", yaw.y-255);
 		tokold = micros();
 		//printf("p: %.3f r: %.3f y %.4f\n", pitch.y, roll.y, yaw.y);
 		
@@ -309,9 +309,9 @@ void SERVO_Init() {
 
 void setSeparateAngle(ANGLE *axis) {
 	axis->data.temp = floor(axis->y);
-	if(abs(axis->data.temp) > 254) {
-		axis->data.integerL = 254;
-		axis->data.integerH = axis->data.temp-254;
+	if(abs(axis->data.temp) > 255) {
+		axis->data.integerL = 255;
+		axis->data.integerH = axis->data.temp-255;
 	}
 	else {
 		axis->data.integerL = axis->data.temp;
