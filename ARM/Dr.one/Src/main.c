@@ -94,9 +94,9 @@ PID pid2 = {30.5, 0.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 PID pid3 = {60.0, 3.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 PID pid4 = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
-CONTROL roll       =  {45, 0, 0, 0, 0, 0};
-CONTROL pitch      =  {45, 0, 0, 0, 0, 0};
-CONTROL yaw        =  {45, 0, 0, 0, 0, 0};
+CONTROL roll       =  {0, 0, 0, 0, 0, 0};
+CONTROL pitch      =  {0, 0, 0, 0, 0, 0};
+CONTROL yaw        =  {0, 0, 0, 0, 0, 0};
 
 /* USER CODE END PV */
 
@@ -209,72 +209,62 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
  
-  /*
-  TIM1->CCR1 = 1000;
-  TIM1->CCR2 = 1000;
-  
-  pid0.kp = 7.75;
-  pid0.ki = 6.5;
-  pid0.kd = 0.0;
-  
-  pid1.kp = 50.0;
-  pid1.ki = 1.0;
-  pid1.kd = 0.0;
-  
-  pid2.kp = 30.5;
-  pid2.ki = 0.25;
-  pid2.kd = 0.0;
-  
-  pid3.kp = 60.0;
-  pid3.ki = 3.25;
-  pid3.kd = 0.0;*/
   
   HAL_FLASH_Unlock();
   __IO uint16_t readTemp = *(__IO uint16_t *)PID0_KP;
-  pid0.kp = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID0_KI;
-  pid0.ki = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID0_KD;
-  pid0.kd = (float)readTemp / 1000;
-  
-  readTemp = *(__IO uint16_t *)PID1_KP;
-  pid1.kp = (float)readTemp / 1000; 
-  readTemp = *(__IO uint16_t *)PID1_KI;
-  pid1.ki = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID1_KD;
-  pid1.kd = (float)readTemp / 1000;
-  
-  readTemp = *(__IO uint16_t *)PID2_KP;
-  pid2.kp = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID2_KI;
-  pid2.ki = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID2_KD;
-  pid2.kd = (float)readTemp / 1000;
-  
-  readTemp = *(__IO uint16_t *)PID3_KP;
-  pid3.kp = (float)readTemp / 1000; 
-  readTemp = *(__IO uint16_t *)PID3_KI;
-  pid3.ki = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID3_KD;
-  pid3.kd = (float)readTemp / 1000;
-  
-  readTemp = *(__IO uint16_t *)PID4_KP;
-  pid4.kp = (float)readTemp / 1000; 
-  readTemp = *(__IO uint16_t *)PID4_KI;
-  pid4.ki = (float)readTemp / 1000;
-  readTemp = *(__IO uint16_t *)PID4_KD;
-  pid4.kd = (float)readTemp / 1000;
-  
-  HAL_FLASH_Lock();
+  if( (float)readTemp/1000 == 0.0 )
+  {
+    printf("Flash Memory Read Failed\r\n");
+  }
+  else
+  {
+    pid0.kp = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID0_KI;
+    pid0.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID0_KD;
+    pid0.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID1_KP;
+    pid1.kp = (float)readTemp / 1000; 
+    readTemp = *(__IO uint16_t *)PID1_KI;
+    pid1.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID1_KD;
+    pid1.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID2_KP;
+    pid2.kp = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID2_KI;
+    pid2.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID2_KD;
+    pid2.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID3_KP;
+    pid3.kp = (float)readTemp / 1000; 
+    readTemp = *(__IO uint16_t *)PID3_KI;
+    pid3.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID3_KD;
+    pid3.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID4_KP;
+    pid4.kp = (float)readTemp / 1000; 
+    readTemp = *(__IO uint16_t *)PID4_KI;
+    pid4.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID4_KD;
+    pid4.kd = (float)readTemp / 1000;
+    
+    HAL_FLASH_Lock();
 
-  prev_p = pid4.kp;
-  prev_i = pid4.ki;
-  prev_d = pid4.kd;
+    prev_p = pid4.kp;
+    prev_i = pid4.ki;
+    prev_d = pid4.kd;
+  }
+  printf("Flash Memory Read Ok\r\n");
   
   /* USER CODE END 2 */
-  //printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n", pid0.kp, pid0.ki, pid0.kd, pid1.kp, pid1.ki, pid1.kd, pid2.kp, pid2.ki, pid2.kd);
+  printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n", pid0.kp, pid0.ki, pid0.kd, pid1.kp, pid1.ki, pid1.kd, pid2.kp, pid2.ki, pid2.kd,  pid3.kp, pid3.ki, pid3.kd, pid4.kp, pid4.ki, pid4.kd);
   printf("Main\r\n");
   HAL_Delay(3000);
+  
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) 
@@ -287,47 +277,50 @@ int main(void)
     if(Fill_ReceiveFromRpi == 1) 
     {
       entReceiveBuf();
-      
-      if( (pid4.kp != prev_p) || (pid4.ki != prev_i) || (pid4.kd != prev_d))
+      if(pid4.kp != 0)
       {
-        TIM1->CCR1 = 1000;
-        TIM1->CCR2 = 1000;
-        
-        prev_p = pid4.kp;
-        prev_i = pid4.ki;
-        prev_d = pid4.kd;
-       
-        
-        HAL_FLASH_Unlock();
-        static FLASH_EraseInitTypeDef EraseInitStruct;
-        EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
-        EraseInitStruct.PageAddress = FLASH_USER_START_ADDR;
-        EraseInitStruct.NbPages     = (FLASH_USER_END_ADDR - FLASH_USER_START_ADDR) / FLASH_PAGE_SIZE;
-        uint32_t PAGEError = 0;
-        
-        HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
-        
-        
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KP, ((uint16_t)(pid0.kp*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KI, ((uint16_t)(pid0.ki*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KD, ((uint16_t)(pid0.kd*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KP, ((uint16_t)(pid1.kp*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KI, ((uint16_t)(pid1.ki*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KD, ((uint16_t)(pid1.kd*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KP, ((uint16_t)(pid2.kp*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KI, ((uint16_t)(pid2.ki*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KD, ((uint16_t)(pid2.kd*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KP, ((uint16_t)(pid3.kp*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KI, ((uint16_t)(pid3.ki*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KD, ((uint16_t)(pid3.kd*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KP, ((uint16_t)(pid4.kp*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KI, ((uint16_t)(pid4.ki*1000)));
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KD, ((uint16_t)(pid4.kd*1000)));
-        
-        HAL_FLASH_Lock();
-        #define AIRCR_VECTKEY_MASK      (0x05FA0000)
-        SCB->AIRCR = AIRCR_VECTKEY_MASK|0x04;
+        if( (pid4.kp != prev_p) || (pid4.ki != prev_i) || (pid4.kd != prev_d))
+        {
+          TIM1->CCR1 = 1000;
+          TIM1->CCR2 = 1000;
+          
+          prev_p = pid4.kp;
+          prev_i = pid4.ki;
+          prev_d = pid4.kd;
+         
+          
+          HAL_FLASH_Unlock();
+          static FLASH_EraseInitTypeDef EraseInitStruct;
+          EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+          EraseInitStruct.PageAddress = FLASH_USER_START_ADDR;
+          EraseInitStruct.NbPages     = (FLASH_USER_END_ADDR - FLASH_USER_START_ADDR) / FLASH_PAGE_SIZE;
+          uint32_t PAGEError = 0;
+          
+          HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+          
+          
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KP, ((uint16_t)(pid0.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KI, ((uint16_t)(pid0.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KD, ((uint16_t)(pid0.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KP, ((uint16_t)(pid1.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KI, ((uint16_t)(pid1.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KD, ((uint16_t)(pid1.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KP, ((uint16_t)(pid2.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KI, ((uint16_t)(pid2.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KD, ((uint16_t)(pid2.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KP, ((uint16_t)(pid3.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KI, ((uint16_t)(pid3.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KD, ((uint16_t)(pid3.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KP, ((uint16_t)(pid4.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KI, ((uint16_t)(pid4.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KD, ((uint16_t)(pid4.kd*1000)));
+          
+          HAL_FLASH_Lock();
+          #define AIRCR_VECTKEY_MASK      (0x05FA0000)
+          SCB->AIRCR = AIRCR_VECTKEY_MASK|0x04;
+        }
       }
+     
       Fill_ReceiveFromRpi = 0;
     }
    
@@ -344,7 +337,7 @@ int main(void)
       calEncoder(&ch3);
       ch3.angle = map_float(ch3.angle,0.,360.,360.,0.);
     }
-    
+      
     
    
     
@@ -375,7 +368,6 @@ int main(void)
         HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
     else
         HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
-   
     
    //printf("ch0 check : %.3f\n", ch0.angle);
    //printf("tim4 ccr3\r\n");
@@ -389,19 +381,21 @@ int main(void)
    {
      TIM1 -> CCR1 = 1000;
      TIM1 -> CCR2 = 1000;
-     pid4.ki = 0;
+     bl0.setValue = 0;
+     bl1.setValue = 0;
+     pid4.i = 0;
    } 
    else
    {
      if(pid4.control > 0 ) 
      {
-       bl0.setValue -= fabs(pid4.control)/2.;
-       bl1.setValue += fabs(pid4.control)/2.;
+       bl0.setValue = -fabs(pid4.control)/2.;
+       bl1.setValue = +fabs(pid4.control)/2.;
      }
      else
      {
-       bl0.setValue += fabs(pid4.control)/2.;
-       bl1.setValue -= fabs(pid4.control)/2.;
+       bl0.setValue = +fabs(pid4.control)/2.;
+       bl1.setValue = -fabs(pid4.control)/2.;
      }
 
       bl0.setValue += throttle;
@@ -414,6 +408,7 @@ int main(void)
       TIM1 -> CCR2 = 1100 + bl1.setValue;                        // À§
    }
 
+   
    if(dc4.setValue > 127) {
       HAL_GPIO_WritePin(DC_E_DIR_GPIO_Port, DC_E_DIR_Pin, GPIO_PIN_RESET);
       TIM2->CCR2 = map(dc4.setValue - 128, 0, 127, 0, 500);
@@ -423,7 +418,7 @@ int main(void)
       TIM2->CCR2 = map(dc4.setValue, 0, 127, 0, 500);
    }
   
-    
+    //printf("%d %d %d %d %d\r\n", bl0.setValue, bl1.setValue, roll.target, pitch.target, yaw.target); 
 
    //printf("%d\t\n",  dc0.setValue);   //printf("%d\t",  dc1.setValue);  
    //printf("%d\t",  dc2.setValue);   printf("%d\t",  dc3.setValue); 
@@ -975,13 +970,12 @@ void sumReceiveBuf(PID *pid)
 
 
 void entReceiveBuf()
-{
+{/*
     sepReceiveBuf(&pid0, -1);
     sepReceiveBuf(&pid1, 8);
     sepReceiveBuf(&pid2, 17);
     sepReceiveBuf(&pid3, 26);
     sepReceiveBuf(&pid4, 35);
-    
     
     roll.target     = ReceiveFromRpiBuf[45];
     pitch.target    = ReceiveFromRpiBuf[46];
@@ -999,7 +993,23 @@ void entReceiveBuf()
     sumReceiveBuf(&pid2);
     sumReceiveBuf(&pid3);
     sumReceiveBuf(&pid4);
+    */
+  
     
+    sepReceiveBuf(&pid4, -1);
+    sumReceiveBuf(&pid4);   
+    
+    roll.target     = ReceiveFromRpiBuf[9];
+    pitch.target    = ReceiveFromRpiBuf[10];
+    yaw.target      = ReceiveFromRpiBuf[11];
+    throttle        = ReceiveFromRpiBuf[12];
+    yaw.integerL    = ReceiveFromRpiBuf[13];
+    yaw.integerH    = ReceiveFromRpiBuf[14];
+    yaw.decimalL    = ReceiveFromRpiBuf[15];
+    yaw.decimalH    = ReceiveFromRpiBuf[16];
+    dc4.setValue    = ReceiveFromRpiBuf[17];
+    ArmState        = ReceiveFromRpiBuf[18];
+  
     throttle = map(throttle,0,255,0,875);
     yaw.angle = yaw.integerH + yaw.integerL;
     
@@ -1011,14 +1021,13 @@ void entReceiveBuf()
       roll.target  = roll.target+360;
     if(pitch.target <= -1)
       pitch.target = pitch.target + 360;
-    if(yaw.target <= -1)
-      yaw.target = yaw.target + 360;
- 
-    yaw.angle += (float)((yaw.decimalH << 8) | (yaw.decimalL)) * 0.001;
+    
+    yaw.angle += ((float)((yaw.decimalH << 8) | (yaw.decimalL)) * 0.001) - 255;
    
     
-    //printf("%.3f %.3f %.3f \r\n", pid4.kp, pid4.ki, pid4.kd);
-    printf("%d %d %d %d \r\n", roll.target, pitch.target, yaw.target, throttle);
+   // printf("%.3f %.3f %.3f \r\n", pid4.kp, pid4.ki, pid4.kd);
+    //printf("%d\r\n", dc4.setValue);
+    //printf("%d %d %d %d %f\r\n", roll.target, pitch.target, yaw.target, throttle, yaw.angle);
     
 }
 

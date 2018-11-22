@@ -122,7 +122,8 @@
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
 #define TXBUFFERSIZE          10
-#define RECEIVE_FROM_RPI_BYTE     56
+#define RECEIVE_FROM_RPI_BYTE     20
+//#define RECEIVE_FROM_RPI_BYTE     56
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
 #define ADDR_FLASH_PAGE_28 ((uint32_t)0x08007000)
@@ -178,7 +179,7 @@ typedef struct Dc {
 typedef struct Bl {
   GPIO_TypeDef *port;
   int8_t   pwmID;
-  int16_t       setValue;
+  int32_t       setValue;
  } BL;
 
 typedef struct Pid {
