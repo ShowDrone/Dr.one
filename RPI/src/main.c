@@ -396,7 +396,7 @@ void readPidGain() {
 	s1 = strtok(NULL, "\n");
 	bl.d = atof(s1);
 	close(fpidgain);
-	printf("a %f %f %f \r\n", dc0.p, dc0.i, dc0.d);
+	printf("a %f %f %f \r\n", bl.p, bl.i, bl.d);
 }
 
 void writePidGain() {

@@ -50,7 +50,7 @@ int set_interface_attribs(int slave_id, int speed)
 
 int ARM_Init(int _id) {
 	
-	char *portname = "/dev/ttyUSB0";
+	char *portname = "/dev/ttyUSB1";
 	
 	slave_id = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
 	if (slave_id < 0) {
@@ -158,7 +158,7 @@ void sendToArm() {
 	SendToArmBuf[19] = checkSum_Byte;
 
 
-	//printf("%d %d %d %d\r\n", SendToArmBuf[36],SendToArmBuf[37],SendToArmBuf[38],SendToArmBuf[39]);
+	printf("%f %d %d %d\r\n", bl.p, SendToArmBuf[0],SendToArmBuf[1],SendToArmBuf[2]);
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
 	  printf("Error from write: %d, %d\n", wlen, errno);
