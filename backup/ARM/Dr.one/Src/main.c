@@ -75,22 +75,24 @@ DC dc0 = {DC_A_DIR_GPIO_Port, DC_A_PWM_GPIO_Port, DC_A_DIR_Pin, DC_A_PWM_Pin , 0
 DC dc1 = {DC_B_DIR_GPIO_Port, DC_B_PWM_GPIO_Port, DC_B_DIR_Pin, DC_B_PWM_Pin, 0};
 DC dc2 = {DC_C_DIR_GPIO_Port, DC_C_PWM_GPIO_Port, DC_C_DIR_Pin, DC_C_PWM_Pin, 0};
 DC dc3 = {DC_D_DIR_GPIO_Port, DC_D_PWM_GPIO_Port, DC_D_DIR_Pin, DC_D_PWM_Pin, 0};
+DC dc4 = {DC_E_DIR_GPIO_Port, DC_E_PWM_GPIO_Port, DC_E_DIR_Pin, DC_E_PWM_Pin, 0};
 
 // BLDC 
-BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin}; 
-BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin}; 
+BL bl0 = {BLDC_A_GPIO_Port, BLDC_A_Pin}; // ¹Ø
+BL bl1 = {BLDC_B_GPIO_Port, BLDC_B_Pin}; // À§
 
 //  ch0~3 = dc0~3
-CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0, 0, 0};  // newv, oldv, width, angle, data[3], status
-CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0, 0, 0};     
-CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0, 0, 0};
-CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0, 0, 0};
+CH ch0 = {0, 0, 0, 0, {0, 0, 0}, 0};  // newv, oldv, width, angle, data[3], status
+CH ch1 = {0, 0, 0, 0, {0, 0, 0}, 0};     
+CH ch2 = {0, 0, 0, 0, {0, 0, 0}, 0};
+CH ch3 = {0, 0, 0, 0, {0, 0, 0}, 0};
 
 // pid0~3 = dc0~3
-PID pid0 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
-PID pid1 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid2 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
-PID pid3 = {1, 1, 0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid0 = {7.75, 6.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // kp, ki, kd, p, i, d, err, err_prev, de, dt, control,, kp_integer, kp_decimal, ki~, kd~
+PID pid1 = {50, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid2 = {30.5, 0.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid3 = {60.0, 3.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
+PID pid4 = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; 
 
 CONTROL roll       =  {0, 0, 0, 0, 0, 0};
 CONTROL pitch      =  {0, 0, 0, 0, 0, 0};
@@ -117,17 +119,21 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 //  Falling Edge<-> Rising Edge
 static void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity);
 float getMvAverage(__IO float *ch, __IO float value, int len);
-void setPidBLDC (PID *pid, BL bl);
-void setPidDC (PID *pid, CH *ch, DC *dc, int axis);
+void setPidBLDC (PID *pid);
+void setPidDC(PID *pid, CH *ch, DC *dc, int axis);
 
 void sepReceiveBuf(PID *pid, int bufCount);
 void sumReceiveBuf(PID *pid); 
 void entReceiveBuf();
 
 
-float map(float x, float in_min, float in_max, float out_min, float out_max);
+int map(int x, int in_min, int in_max, int out_min, int out_max);
+float map_float(float x, float in_min, float in_max, float out_min, float out_max);
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte);
+void calEncoder(CH *ch);
 void USART_ClearITPendingBit(UART_HandleTypeDef* USARTx, uint16_t USART_IT);
+
+
 
 /* USER CODE END PFP */
 
@@ -138,10 +144,10 @@ int throttle = 0;
 float targetDeg = 0.;
 uint8_t ReceiveFromRpiBuf[RECEIVE_FROM_RPI_BYTE];
 uint8_t Fill_ReceiveFromRpi = 0;
+uint8_t ArmState = 0;
 float prev_p = 0;
 float prev_i = 0;
 float prev_d = 0;
-float tau = 0.01;
 
 /* USER CODE END 0 */
 
@@ -192,26 +198,78 @@ int main(void)
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);             // DC Motor B
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);             // DC Motor C
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);             // DC Motor D
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);             // DC Motor E
   
   // ESC Switch 490Hz Period     pulse width 0 ~ 2040
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
+  // HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);             // ESC Switch
   
   // InputCaputre 0 ~ 7200 
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);           // Encoder A
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);           // Encoder B
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);           // Encoder C
   HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);           // Encoder D
+ 
   
+  HAL_FLASH_Unlock();
+  __IO uint16_t readTemp = *(__IO uint16_t *)PID0_KP;
+  if( (float)readTemp/1000 == 0.0 )
+  {
+    printf("Flash Memory Read Failed\r\n");
+  }
+  else
+  {
+    pid0.kp = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID0_KI;
+    pid0.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID0_KD;
+    pid0.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID1_KP;
+    pid1.kp = (float)readTemp / 1000; 
+    readTemp = *(__IO uint16_t *)PID1_KI;
+    pid1.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID1_KD;
+    pid1.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID2_KP;
+    pid2.kp = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID2_KI;
+    pid2.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID2_KD;
+    pid2.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID3_KP;
+    pid3.kp = (float)readTemp / 1000; 
+    readTemp = *(__IO uint16_t *)PID3_KI;
+    pid3.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID3_KD;
+    pid3.kd = (float)readTemp / 1000;
+    
+    readTemp = *(__IO uint16_t *)PID4_KP;
+    pid4.kp = (float)readTemp / 1000; 
+    readTemp = *(__IO uint16_t *)PID4_KI;
+    pid4.ki = (float)readTemp / 1000;
+    readTemp = *(__IO uint16_t *)PID4_KD;
+    pid4.kd = (float)readTemp / 1000;
+    
+    HAL_FLASH_Lock();
+
+    prev_p = pid4.kp;
+    prev_i = pid4.ki;
+    prev_d = pid4.kd;
+  }
+  printf("Flash Memory Read Ok\r\n");
   
   /* USER CODE END 2 */
-  
+  printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f\n", pid0.kp, pid0.ki, pid0.kd, pid1.kp, pid1.ki, pid1.kd, pid2.kp, pid2.ki, pid2.kd,  pid3.kp, pid3.ki, pid3.kd, pid4.kp, pid4.ki, pid4.kd);
   printf("Main\r\n");
+  HAL_Delay(3000);
+  
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) 
   {    
-    
-    
+   
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -219,97 +277,85 @@ int main(void)
     if(Fill_ReceiveFromRpi == 1) 
     {
       entReceiveBuf();
-      if( (pid0.kp != prev_p) || (pid0.ki != prev_i) || (pid0.kd != prev_d))
+      if(pid4.kp != 0)
       {
-        TIM4->CCR3 = 200;
-        HAL_Delay(500); 
-        TIM4->CCR3 = 0;
-        HAL_Delay(1000); 
+        if( (pid4.kp != prev_p) || (pid4.ki != prev_i) || (pid4.kd != prev_d))
+        {
+          TIM1->CCR1 = 1000;
+          TIM1->CCR2 = 1000;
+          
+          prev_p = pid4.kp;
+          prev_i = pid4.ki;
+          prev_d = pid4.kd;
+         
+          
+          HAL_FLASH_Unlock();
+          static FLASH_EraseInitTypeDef EraseInitStruct;
+          EraseInitStruct.TypeErase   = FLASH_TYPEERASE_PAGES;
+          EraseInitStruct.PageAddress = FLASH_USER_START_ADDR;
+          EraseInitStruct.NbPages     = (FLASH_USER_END_ADDR - FLASH_USER_START_ADDR) / FLASH_PAGE_SIZE;
+          uint32_t PAGEError = 0;
+          
+          HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+          
+          
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KP, ((uint16_t)(pid0.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KI, ((uint16_t)(pid0.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID0_KD, ((uint16_t)(pid0.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KP, ((uint16_t)(pid1.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KI, ((uint16_t)(pid1.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID1_KD, ((uint16_t)(pid1.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KP, ((uint16_t)(pid2.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KI, ((uint16_t)(pid2.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID2_KD, ((uint16_t)(pid2.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KP, ((uint16_t)(pid3.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KI, ((uint16_t)(pid3.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID3_KD, ((uint16_t)(pid3.kd*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KP, ((uint16_t)(pid4.kp*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KI, ((uint16_t)(pid4.ki*1000)));
+          HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, PID4_KD, ((uint16_t)(pid4.kd*1000)));
+          
+          HAL_FLASH_Lock();
+          #define AIRCR_VECTKEY_MASK      (0x05FA0000)
+          SCB->AIRCR = AIRCR_VECTKEY_MASK|0x04;
+        }
       }
-      prev_p = pid0.kp;
-      prev_i = pid0.ki;
-      prev_d = pid0.kd;
-       
-        
-    
-      //printf("%d %d %d %d\r\n", roll.target, pitch.target, yaw.target, dc3.setValue);
+     
       Fill_ReceiveFromRpi = 0;
     }
    
     
-    if(ch0.status == 1) 
-    {
-        ch0.angle = ch0.width*0.05;     
-        if(ch0.angle >= 360.0)
-        {
-          ch0.angle = 359.95;
-        }
-        
-        ch0.status = 0;        
-        
-        if(ch0.angle > 180.00)
-        {
-          ch0.print = map(ch0.angle, 180.0, 359.95, -180.0, -0.05 );
-        }
-        else
-        {
-          ch0.print = map(ch0.angle, 
-        }
-        ch0.lpf = (tau*ch0.prev + 0.001*ch0.print) / (tau+0.001);
-        
-        ch0.prev = ch0.print;
-        
-        
+    if(ch0.status == 1) {
+      calEncoder(&ch0);  
+      ch0.angle = map_float(ch0.angle,0.,360.,360.,0.);
     }
     if(ch1.status == 1)
-    {
-        ch1.angle = ch1.width*0.05;
-        if(ch1.angle >= 360.0)
-        {
-          ch1.angle = 359.95;
-        }
-        ch1.status = 0;
-    }
-    
+      calEncoder(&ch1);
     if(ch2.status == 1)
-    {
-        if(ch2.angle >= 360.0)
-        {
-          ch2.angle = 359.95;
-        }
-        ch2.angle = ch2.width*0.05;  
-        ch2.status = 0;
+      calEncoder(&ch2);
+    if(ch3.status == 1) {
+      calEncoder(&ch3);
+      ch3.angle = map_float(ch3.angle,0.,360.,360.,0.);
     }
-    if(ch3.status == 1)
-    {
-        ch3.angle = ch3.width*0.05;
-        if(ch3.angle >= 360.0)
-        {
-          ch3.angle = 359.95;
-        }
-        ch3.status = 0;
-        
-    }
+      
     
-    
-    //printf("%f %f %f %f\n", ch0.angle, ch1.angle, ch2.angle, ch3.angle); 
-    
-    
-    //printf("%f\r\n", ch0.print);
+   
     
     // pid Control
-    setPidDC(&pid0, &ch0, &dc0, 0);
-    //setPidDC(&pid1, &ch1, &dc1, 1);
-    //setPidDC(&pid2, &ch2, &dc2, 0);
-    //setPidDC(&pid3, &ch3, &dc3, 1);
-       
+    setPidDC(&pid0, &ch0, &dc0, 1);
+    setPidDC(&pid1, &ch1, &dc1, 0);
+    setPidDC(&pid2, &ch2, &dc2, 1);
+    setPidDC(&pid3, &ch3, &dc3, 0);
+    setPidBLDC(&pid4);
+   
+    
     /* DC  */
     // DC Motor Directrion, GPIO_PIN_RESET = +, GPIO_PIN_SET -
     
     if(dc0.setValue > 0)
-        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
-    else
         HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_SET);
+    else
+        HAL_GPIO_WritePin(DC_A_DIR_GPIO_Port, DC_A_DIR_Pin, GPIO_PIN_RESET);
     if(dc1.setValue > 0) 
         HAL_GPIO_WritePin(DC_B_DIR_GPIO_Port, DC_B_DIR_Pin, GPIO_PIN_RESET);
     else
@@ -318,24 +364,61 @@ int main(void)
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_RESET);
     else
         HAL_GPIO_WritePin(DC_C_DIR_GPIO_Port, DC_C_DIR_Pin, GPIO_PIN_SET);
-   if(dc3.setValue > 0) 
-        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);
+    if(dc3.setValue > 0) 
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);
     else
-        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_SET);  
-   
+        HAL_GPIO_WritePin(DC_D_DIR_GPIO_Port, DC_D_DIR_Pin, GPIO_PIN_RESET);  
     
-
-   //TIM4->CCR4 = 250;
-  
    //printf("ch0 check : %.3f\n", ch0.angle);
    //printf("tim4 ccr3\r\n");
    
-          
-   TIM4 -> CCR3 = abs(dc0.setValue)+150; // DC_A
-   //TIM4 -> CCR4 = abs(dc1.setValue)+150; // DC_B
-   //TIM2 -> CCR3 = abs(dc2.setValue)+150; // DC_C
-   //TIM2 -> CCR4 = abs(dc3.setValue)+150; // DC_D 
+   TIM4 -> CCR3 = abs(dc0.setValue); // DC_A
+   TIM4 -> CCR4 = abs(dc1.setValue); // DC_B
+   TIM2 -> CCR3 = abs(dc2.setValue); // DC_C
+   TIM2 -> CCR4 = abs(dc3.setValue); // DC_D 
+
+   if(throttle == 0) 
+   {
+     TIM1 -> CCR1 = 1000;
+     TIM1 -> CCR2 = 1000;
+     bl0.setValue = 0;
+     bl1.setValue = 0;
+     pid4.i = 0;
+   } 
+   else
+   {
+     if(pid4.control > 0 ) 
+     {
+       bl0.setValue = -fabs(pid4.control)/2.;
+       bl1.setValue = +fabs(pid4.control)/2.;
+     }
+     else
+     {
+       bl0.setValue = +fabs(pid4.control)/2.;
+       bl1.setValue = -fabs(pid4.control)/2.;
+     }
+
+      bl0.setValue += throttle;
+      bl1.setValue += throttle;
+      
+      bl0.setValue=constrain(bl0.setValue,0,900);
+      bl1.setValue=constrain(bl1.setValue,0,900);
+       
+      TIM1 -> CCR1 = 1100 + bl0.setValue;                        // ¹Ø
+      TIM1 -> CCR2 = 1100 + bl1.setValue;                        // À§
+   }
+
    
+   if(dc4.setValue > 127) {
+      HAL_GPIO_WritePin(DC_E_DIR_GPIO_Port, DC_E_DIR_Pin, GPIO_PIN_RESET);
+      TIM2->CCR2 = map(dc4.setValue - 128, 0, 127, 0, 500);
+   }
+   else {
+      HAL_GPIO_WritePin(DC_E_DIR_GPIO_Port, DC_E_DIR_Pin, GPIO_PIN_SET);
+      TIM2->CCR2 = map(dc4.setValue, 0, 127, 0, 500);
+   }
+  
+    //printf("%d %d %d %d %d\r\n", bl0.setValue, bl1.setValue, roll.target, pitch.target, yaw.target); 
 
    //printf("%d\t\n",  dc0.setValue);   //printf("%d\t",  dc1.setValue);  
    //printf("%d\t",  dc2.setValue);   printf("%d\t",  dc3.setValue); 
@@ -529,7 +612,7 @@ static void MX_TIM1_Init(void)
   }
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 1000;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
@@ -802,26 +885,23 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   
-  
-  
-  
 }
 
 /* USER CODE BEGIN 4 */
 
 
 // TODO: targetDeg ??? rpi???? ???? YAW???? ?????????.
-void setPidBLDC(PID *pid, BL bl)
+void setPidBLDC(PID *pid)
 {
-  pid->err = yaw.target - yaw.angle ;
+  pid->err = yaw.target - yaw.angle;
   pid->de = pid->err - pid->err_prev;
   pid->dt = 0.001;
   pid->p = pid->err * pid->kp;
   pid->i = pid->i + pid->err * pid->dt * pid->ki;
-  pid->control = constrain(pid->control,-10,10);
+  pid->i = constrain(pid->i,-10,10);
   pid->d = pid->kd * (pid->de / pid->dt);
   pid->control = pid->p + pid->i + pid->d;
-  pid->control = constrain(pid->control,-100,100);
+  pid->control = constrain(pid->control,-50,50);
   pid->err_prev = pid->err;
 }
 
@@ -829,9 +909,10 @@ void setPidBLDC(PID *pid, BL bl)
 void setPidDC(PID *pid, CH *ch, DC *dc, int axis)
 {
   float temp;
+  
   if (axis == 0) // roll
   {  
-    temp = roll.target - ch->angle;
+      temp = roll.target - ch->angle;
   }
   else          // pitch
   {
@@ -847,14 +928,12 @@ void setPidDC(PID *pid, CH *ch, DC *dc, int axis)
   else {
       pid->err = temp;
   }
-  //printf("ang: %.3f\t", ch->angle);
-  //printf("tmp: %.3f\n", pid->err);
   
   pid->de = pid->err - pid->err_prev;        
   pid->dt = 0.001;                                 
   pid->p = pid->err * pid->kp;                    
   pid->i += pid->err * pid->dt * pid->ki;
-  pid->i = constrain(pid->i,-50,50);
+  pid->i = constrain(pid->i,-30,30);
   pid->d = pid->kd * (pid->de / pid->dt);      
   pid->control = pid->p + pid->i + pid->d;       
  
@@ -891,33 +970,63 @@ void sumReceiveBuf(PID *pid)
 
 
 void entReceiveBuf()
-{
-  
+{/*
     sepReceiveBuf(&pid0, -1);
     sepReceiveBuf(&pid1, 8);
     sepReceiveBuf(&pid2, 17);
     sepReceiveBuf(&pid3, 26);
+    sepReceiveBuf(&pid4, 35);
     
-    
-    roll.target     = ReceiveFromRpiBuf[36] + ReceiveFromRpiBuf[37];
-    pitch.target    = ReceiveFromRpiBuf[38] + ReceiveFromRpiBuf[39];
-    yaw.target      = ReceiveFromRpiBuf[40];
-    throttle        = ReceiveFromRpiBuf[41];
-    yaw.integerL    = ReceiveFromRpiBuf[42];
-    yaw.integerH    = ReceiveFromRpiBuf[43];
-    yaw.decimalL    = ReceiveFromRpiBuf[44];
-    yaw.decimalH    = ReceiveFromRpiBuf[45];
+    roll.target     = ReceiveFromRpiBuf[45];
+    pitch.target    = ReceiveFromRpiBuf[46];
+    yaw.target      = ReceiveFromRpiBuf[47];
+    throttle        = ReceiveFromRpiBuf[48];
+    yaw.integerL    = ReceiveFromRpiBuf[49];
+    yaw.integerH    = ReceiveFromRpiBuf[50];
+    yaw.decimalL    = ReceiveFromRpiBuf[51];
+    yaw.decimalH    = ReceiveFromRpiBuf[52];
+    dc4.setValue    = ReceiveFromRpiBuf[53];
+    ArmState        = ReceiveFromRpiBuf[54];
     
     sumReceiveBuf(&pid0);
     sumReceiveBuf(&pid1);
     sumReceiveBuf(&pid2);
     sumReceiveBuf(&pid3);
+    sumReceiveBuf(&pid4);
+    */
+  
     
+    sepReceiveBuf(&pid4, -1);
+    sumReceiveBuf(&pid4);   
+    
+    roll.target     = ReceiveFromRpiBuf[9];
+    pitch.target    = ReceiveFromRpiBuf[10];
+    yaw.target      = ReceiveFromRpiBuf[11];
+    throttle        = ReceiveFromRpiBuf[12];
+    yaw.integerL    = ReceiveFromRpiBuf[13];
+    yaw.integerH    = ReceiveFromRpiBuf[14];
+    yaw.decimalL    = ReceiveFromRpiBuf[15];
+    yaw.decimalH    = ReceiveFromRpiBuf[16];
+    dc4.setValue    = ReceiveFromRpiBuf[17];
+    ArmState        = ReceiveFromRpiBuf[18];
+  
+    throttle = map(throttle,0,255,0,875);
     yaw.angle = yaw.integerH + yaw.integerL;
-    yaw.angle += (float)((yaw.decimalH << 8) | (yaw.decimalL)) * 0.001;
     
-    //printf("%.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f \n", pid0.kp,pid0.ki,pid0.kd,pid1.kp,pid1.ki,pid1.kd,pid2.kp,pid2.ki,pid2.kd,pid3.kp,pid3.ki,pid3.kd);
+    roll.target = map(roll.target,0,90,-45,45);
+    pitch.target = map(pitch.target,0,90,-45,45);
+    yaw.target = map(yaw.target,0,90,-45,45);
+  
+    if(roll.target <= -1)
+      roll.target  = roll.target+360;
+    if(pitch.target <= -1)
+      pitch.target = pitch.target + 360;
     
+    yaw.angle += ((float)((yaw.decimalH << 8) | (yaw.decimalL)) * 0.001) - 255;
+   
+    
+   // printf("%.3f %.3f %.3f \r\n", pid4.kp, pid4.ki, pid4.kd);
+    //printf("%d\r\n", dc4.setValue);
     //printf("%d %d %d %d %f\r\n", roll.target, pitch.target, yaw.target, throttle, yaw.angle);
     
 }
@@ -930,8 +1039,34 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
   }
   USART_ClearITPendingBit(&huart3, UART_IT_TC);
   
- 
+}
+
+void calEncoder(CH *ch) {
+    ch->angle = ch->width*0.05;
+    if(ch->angle >= 360.0)
+      ch->angle = 360.0;
+    //if(ch->angle > 179.9)
+    //  ch->print = map(ch->angle,180.0,360.00,-179.99,-0.01);
+    else
+      ch->print = ch->angle;
+    ch->status = 0;        
   
+}
+
+float getMvAverage(__IO float *ch, __IO float value, int len)
+{
+    float sum = 0;
+    
+    for(int i=0;i<len-1;i++)
+      ch[i] = ch[i]+1;
+       
+    ch[len-1] = value; 
+    
+    for(int i=0;i<len;i++)
+      sum += ch[i];
+    
+    return sum / (float)len; 
+    
 }
   
 uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte) {
@@ -945,6 +1080,8 @@ uint8_t checkSum(uint8_t *data, uint8_t len, uint8_t checkSumByte) {
   return ~(checkSumByte + sum);
 } 
      
+
+
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 
   //UART_RxAgain(huart);
@@ -1046,7 +1183,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
   }
 }
 
-float map(float x, float in_min, float in_max, float out_min, float out_max)
+int map(int x, int in_min, int in_max, int out_min, int out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+float map_float(float x, float in_min, float in_max, float out_min, float out_max)
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
@@ -1060,21 +1202,7 @@ void set_polarity(TIM_TypeDef *tim,uint16_t ch,uint16_t polarity)
       tim->CCER |= c;
 }
 
-float getMvAverage(__IO float *ch, __IO float value, int len)
-{
-    float sum = 0;
-    
-    for(int i=0;i<len-1;i++)
-      ch[i] = ch[i]+1;
-       
-    ch[len-1] = value; 
-    
-    for(int i=0;i<len;i++)
-      sum += ch[i];
-    
-    return sum / (float)len; 
-    
-}
+
 
 /* USER CODE END 4 */
 

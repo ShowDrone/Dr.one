@@ -4,7 +4,6 @@
 char *user = "pi";      // Raspberry Pi ID
 char *pw = "vkdlemfhs"; // Raspberry Pi Password
 char *mqbuf = (char *)malloc(70 * sizeof(char));
-void setSeparate(PID *pid);
 
 struct mosquitto *mosq = NULL;
 
@@ -122,22 +121,22 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		msg=(char *)message->payload;
 
 		s1=strtok(msg,",");
-		roll.server=atof(s1);
+		roll.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		pitch.server=atof(s1);
+		pitch.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		yaw.server=atof(s1);
+		yaw.server=round(atof(s1)*45) + 45;
 		s1=strtok(NULL,",");
-		bldcSpeed = atof(s1);
+		bldcSpeed = round(atof(s1)*255);
 		s1=strtok(NULL,",");
-		servo.y = atof(s1);
+		servo.y = atof(s1)*50;
 		s1=strtok(NULL,"\r");
-		servo.x = atof(s1);
-
-		printf("input : roll %f, pitch %f, yaw %f, bl %i, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
+		servo.x = atof(s1)*50;
+		
+		printf("input : roll %d, pitch %d, yaw %d, bl %d, ser %f, ser %f\r\n",roll.server,pitch.server,yaw.server,bldcSpeed,servo.y,servo.x);	
 	}
 
-	// PID GAIN, 스피드 등으로 return 해주는 코드		
+	// PID GAIN, return	
 	mosquitto_topic_matches_sub("pidrone/CMD/FG/get", message->topic, &match);
 	if (match) {
 		msg = (char *)message->payload;
@@ -292,7 +291,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		    	dc0.i = atof(s1);
 			s1 = strtok(NULL, "\r");
 		    	dc0.d = atof(s1);
-			setSeparate(&dc0);
+			setSeparatePID(&dc0);
 		    	printf("dc0: %.3f %.3f %.3f\r\n", dc0.p, dc0.i, dc0.d);
 		}
 		if(getid == 1) {
@@ -302,7 +301,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		    	dc1.i = atof(s1);
 			s1 = strtok(NULL, "\r");
 		    	dc1.d = atof(s1);
-			setSeparate(&dc1);
+			setSeparatePID(&dc1);
 			printf("dc1: %.3f %.3f %.3f\r\n", dc1.p, dc1.i, dc1.d);
 		}
 		if(getid == 2) {
@@ -312,7 +311,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		    	dc2.i = atof(s1);
 			s1 = strtok(NULL, "\r");
 		    	dc2.d = atof(s1);
-			setSeparate(&dc2);
+			setSeparatePID(&dc2);
 			printf("dc2: %.3f %.3f %.3f\r\n", dc2.p, dc2.i, dc2.d);
 		}
 		if(getid == 3) {
@@ -322,22 +321,18 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		    	dc3.i = atof(s1);
 			s1 = strtok(NULL, "\r");
 		    	dc3.d = atof(s1);
-			setSeparate(&dc3);
+			setSeparatePID(&dc3);
 			printf("dc3: %.3f %.3f %.3f\r\n", dc3.p, dc3.i, dc3.d);
 		}
 		if(getid == 4) {
 			s1 = strtok(NULL, ",");
-			startFlying = (int)atof(s1);
-			ARM_close();
-			delay(50);
-			ARM_Init(0x30);
-			delay(100);
+			//startFlying = (int)atof(s1);
+
 		}
 		//int16_t testVariable = 0;
 		//testVariable = (dc0.pGain.decimalH << 8) | (dc0.pGain.decimalL);
 		//float ta = (float)testVariable / 10000;
 		//printf("dc0.data: %d %d %d %d %d %f\r\n", dc0.pGain.integerL, dc0.pGain.integerH, dc0.pGain.decimalL, dc0.pGain.decimalH,testVariable, ta);
-		
 	}
 	mosquitto_topic_matches_sub("pidrone/PID/BL", message->topic, &match);
 	if (match) {
@@ -349,7 +344,7 @@ void message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_
 		s1 = strtok(NULL, "\r");
 		bl.d = atof(s1);;
 		printf("BL: %f %f %f\r\n", bl.p, bl.i, bl.d); 
-		setSeparate(&bl);
+		setSeparatePID(&bl);
 	}
 }
 
@@ -384,27 +379,4 @@ int mq_send(const char *topic, const char *msg) {
 void mq_close() {
 	mosquitto_destroy(mosq);
 	mosquitto_lib_cleanup();
-}
-
-
-void setSeparate(PID *pid) {
-	pid->pGain.temp = floor(pid->p);
-	pid->iGain.temp = floor(pid->i);		
-	pid->dGain.temp = floor(pid->d);
-
-	pid->pGain.integerL = pid->pGain.temp;
-	pid->iGain.integerL = pid->iGain.temp;
-	pid->dGain.integerL = pid->dGain.temp;
-
-	pid->pGain.temp = (pid->p - pid->pGain.temp) * 1000;
-	pid->iGain.temp = (pid->i - pid->iGain.temp) * 1000;
-	pid->dGain.temp = (pid->d - pid->dGain.temp) * 1000;
-
-	pid->pGain.decimalL = (int)pid->pGain.temp & 0xff;
-	pid->iGain.decimalL = (int)pid->iGain.temp & 0xff;
-	pid->dGain.decimalL = (int)pid->dGain.temp & 0xff;
-
-	pid->pGain.decimalH = (int)pid->pGain.temp >> 8;
-	pid->iGain.decimalH = (int)pid->iGain.temp >> 8;
-	pid->dGain.decimalH = (int)pid->dGain.temp >> 8;
 }

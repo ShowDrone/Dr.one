@@ -2,9 +2,9 @@ CC := g++
 
 EXTRAINCDIRS += -I "../inc"
 EXTRALDFLAGS += -L/usr/local/lib -L"../lib"
-EXTRALIBS += -lwiringPi -lm -lmosquitto -lpthread -lRTIMULib -lwiringPi
+EXTRALIBS += -lwiringPi -lm -lmosquitto -lpthread -lRTIMULib -lwiringPi `sdl2-config --cflags --libs`
 
-CFLAGS += -O2 -W -Wall
+CFLAGS += -O2 -W
 
 MYOBJS =  ../obj/Sonar.o ../obj/nmea.o ../obj/gps.o ../obj/serial.o ../obj/lidar.o ../obj/SendToArm.o ../obj/Mqtt.o
  

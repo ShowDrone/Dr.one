@@ -64,6 +64,20 @@ RTIMU_DATA imuData;
 char *imuresult;
 RTIMUSettings *settings = new RTIMUSettings("RTIMULib");
 RTIMU *imu = RTIMU::createIMU(settings);
+int roll_up_flag = 0;
+int roll_down_flag = 0;
+int pitch_up_flag = 0;
+int pitch_down_flag = 0;
+int yaw_up_flag = 0;
+int yaw_down_flag = 0;
+int throttle_up_flag = 0;
+int throttle_down_flag = 0;
+
+
+pthread_t tId;
+void *eventloop(void *ptr);
+SDL_Window* win = SDL_CreateWindow("Hello World!", 100, 100, 640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	
 
 int main(int argc, char **argv) {
 		
@@ -106,18 +120,31 @@ int main(int argc, char **argv) {
 	printf("Main\r\n");
 	// 프로그램 루프 시간 기록을 위해 진입 전에 시작 시간 대입
 	rateTimerSonar = displayTimer = rateTimerGps = micros();
-	float biasZ = 0;
 	
+
+
+	SDL_Init(SDL_INIT_EVERYTHING);
+	SDL_SetWindowTitle(win, "KeyboardController");
+	
+	int ret = pthread_create(&tId, NULL, eventloop, NULL);
+	if(ret) {
+		fprintf(stderr,"Error - pthread_create() return code: %d\n",ret);
+		exit(EXIT_FAILURE);
+	}
+
+	/*
+	float biasZ = 0;
 	for(int i=0;i<150;i++) {
 		while(imu->IMURead()); 
 		RTVector3 gyro = imu->getGyro();
 		biasZ += gyro.z();
 	}
 	biasZ /= 150;
+	*/
 	while (1) {
 	   	// imu로 9축 데이터 읽어 오는 곳
-		while(imu->IMURead()); 
-		imuData = imu->getIMUData();
+		//while(imu->IMURead()); 
+		//imuData = imu->getIMUData();
 /*		// 칼만필터링을 통해 각도로 변환한 걸 문자열로 저장한걸 roll, pitch, yaw로 구분
 		imuresult=(char *)RTMath::displayDegrees("",imuData.fusionPose);
 		imuresult=strtok(imuresult,":");
@@ -134,8 +161,8 @@ int main(int argc, char **argv) {
 */		
 		
 	
-		RTVector3 gyro = imu->getGyro();
-		yaw.y = (gyro.z()-biasZ)+255;
+		//RTVector3 gyro = imu->getGyro();
+		//yaw.y = (gyro.z()-biasZ)+255;
 		//yaw_sum = yaw.y*0.001 + yaw_pre_sum;
 		//yaw_pre_sum = yaw_sum;
 		
@@ -410,11 +437,122 @@ void writePidGain() {
 }
 
 void INThandler(int sig) {
+	pthread_join(tId, NULL);	
+	SDL_DestroyWindow(win);
+	SDL_Quit();
+
 	writePidGain();
 	mq_close();
 	setZeroProp();
 	GPS_close();
 	ARM_close();
 	exit(0);
+}
+
+
+
+
+void *eventloop(void *ptr) {
+	while(1) {
+		SDL_Event ev;
+		/*if(SDL_PollEvent(&ev) == 0) {
+			continue;
+		}*/
+		switch(ev.type) {
+			case SDL_KEYUP:
+					switch(ev.key.keysym.scancode) {
+						case 26:
+							roll_up_flag = 1;
+						break;
+						case 4:
+							roll_down_flag = 1;
+						break;
+						case 22:
+							pitch_down_flag = 1;
+						break;
+						case 7:
+							pitch_up_flag = 1;
+						break;
+						case 82:
+							throttle_up_flag = 1;
+						break;
+						case 79:
+							throttle_down_flag = 1;
+						break;
+						case 80:
+							yaw_down_flag = 1;
+						break;
+						case 81:
+							yaw_up_flag = 1;
+						break;
+					}
+					break;
+					
+			case SDL_KEYDOWN:
+					switch(ev.key.keysym.scancode) {
+						case 26:
+							roll_up_flag = 0;
+						break;
+						case 4:
+							roll_down_flag = 0;
+						break;
+						case 22:
+							pitch_down_flag = 0;
+						break;
+						case 7:
+							pitch_up_flag = 0;
+						break;
+						case 82:
+							throttle_up_flag = 0;
+						break;
+						case 79:
+							throttle_down_flag = 0;
+						break;
+						case 80:
+							yaw_down_flag = 0;
+						break;
+						case 81:
+							yaw_up_flag = 0;
+						break;
+					}
+			default:
+				break;
+		}
+		
+		if(roll_up_flag == 1)
+			roll.server = roll.server + 0.01;
+		else
+			roll.server = 0;
+		if(roll_down_flag == 1)
+			roll.server = roll.server - 0.01;
+		else
+			roll.server = 0;
+			
+		if(pitch_up_flag == 1)
+			pitch.server = pitch.server + 0.01;
+		else
+			pitch.server = 0;
+		if(pitch_down_flag == 1)
+			pitch.server = pitch.server - 0.01;
+		else
+			pitch.server = 0;
+		
+		if(yaw_up_flag == 1)
+			yaw.server = yaw.server + 0.01;
+		else
+			yaw.server = 0;
+		if(yaw_down_flag == 1)
+			yaw.server = yaw.server - 0.01;
+		else
+			yaw.server = 0;
+		
+		roll.server=roll.server*45 + 45;
+		pitch.server=pitch.server*45 + 45;
+		yaw.server=yaw.server*45 + 45;
+		bldcSpeed = bldcSpeed*255;
+		//servo.y = servo.y*50;
+		//servo.x = servo.x*50;
+		
+	}
 }
 

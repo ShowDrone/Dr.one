@@ -122,11 +122,38 @@
 #define I2C_ADDRESS        0x60   
 #define I2C_SPEEDCLOCK   400000
 #define TXBUFFERSIZE          10
-#define RECEIVE_FROM_RPI_BYTE     47     
+#define RECEIVE_FROM_RPI_BYTE     20
+//#define RECEIVE_FROM_RPI_BYTE     56
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
-  
-#define CR1_PE_Set (0x0001)
-#define CR1_PE_Reset (0xFFFE)
+
+#define ADDR_FLASH_PAGE_28 ((uint32_t)0x08007000)
+#define FLASH_USER_START_ADDR   ADDR_FLASH_PAGE_28
+#define FLASH_USER_END_ADDR   ADDR_FLASH_PAGE_28 + FLASH_PAGE_SIZE
+
+#define PID0_KP      (FLASH_USER_START_ADDR)
+#define PID0_KI      (FLASH_USER_START_ADDR+2)
+#define PID0_KD      (FLASH_USER_START_ADDR+4)
+    
+#define PID1_KP      (FLASH_USER_START_ADDR+6)
+#define PID1_KI      (FLASH_USER_START_ADDR+8)
+#define PID1_KD      (FLASH_USER_START_ADDR+10)
+   
+#define PID2_KP      (FLASH_USER_START_ADDR+12)
+#define PID2_KI      (FLASH_USER_START_ADDR+14)
+#define PID2_KD      (FLASH_USER_START_ADDR+16)
+    
+#define PID3_KP      (FLASH_USER_START_ADDR+18)
+#define PID3_KI      (FLASH_USER_START_ADDR+20)
+#define PID3_KD      (FLASH_USER_START_ADDR+22)
+    
+#define PID4_KP      (FLASH_USER_START_ADDR+24)
+#define PID4_KI      (FLASH_USER_START_ADDR+26)
+#define PID4_KD      (FLASH_USER_START_ADDR+28)
+    
+    
+//#define CR1_PE_Set (0x0001)
+//#define CR1_PE_Reset (0xFFFE)
+    
     
 typedef struct Ch
 {
@@ -137,9 +164,8 @@ typedef struct Ch
    __IO float    data[3];
    __IO uint8_t   status;
    __IO float    prev;
-   __IO float    lpf;
-   int           offset;
-   float          print;
+   __IO float    mvf;
+   __IO float    print;
 } CH;
 
 typedef struct Dc {
@@ -153,7 +179,7 @@ typedef struct Dc {
 typedef struct Bl {
   GPIO_TypeDef *port;
   int8_t   pwmID;
-  int16_t       setValue;
+  int32_t       setValue;
  } BL;
 
 typedef struct Pid {
@@ -180,7 +206,7 @@ typedef struct Pid {
 } PID;
 
 typedef struct Control {
-  uint16_t target;
+  int16_t target;
   float angle;
   uint8_t integerL;
   uint8_t integerH;

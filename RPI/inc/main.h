@@ -17,6 +17,8 @@
 #include "Mqtt.h"
 #include "Lidar.h"
 #include "SendToArm.h"
+#include <SDL.h>
+#include <pthread.h>
 
 /* Private define ------------------------------------------------------------*/
 #define MAIN_DEBUG 1  // Debug msg output

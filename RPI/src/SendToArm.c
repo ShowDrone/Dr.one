@@ -50,7 +50,7 @@ int set_interface_attribs(int slave_id, int speed)
 
 int ARM_Init(int _id) {
 	
-	char *portname = "/dev/ttyUSB1";
+	char *portname = "/dev/ttyUSB0";
 	
 	slave_id = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
 	if (slave_id < 0) {

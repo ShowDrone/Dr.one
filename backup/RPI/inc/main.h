@@ -47,8 +47,9 @@ typedef struct Apart {
 } APART;
 
 typedef struct Angle {
-    float server;
+    int server;
     float y;
+    float prev;
     float bias;
     APART data;
 } ANGLE;
@@ -71,6 +72,7 @@ extern PID   dc2;
 extern PID   dc3;
 extern PID   bl;
 extern SERVO servo;
-extern float bldcSpeed;
+extern int bldcSpeed;
+extern void setSeparatePID(PID *pid);
 
 #endif

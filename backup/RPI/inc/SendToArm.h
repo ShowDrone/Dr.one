@@ -21,12 +21,13 @@ typedef struct Rpi {
 extern RPI rpi;
 extern bool autoPilotMode;
 extern bool startFlying;
+extern bool ArmState;
 extern int ARM_Init(int _id);
 	
 extern void lBeep();
-extern void send_Arm_ReadyToFly();
-extern void send_Arm_Flying();
+extern void sendToArm();
 extern void ARM_close();
+extern void setZeroProp();
 
 #endif
 
