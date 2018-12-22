@@ -30,6 +30,7 @@
 #define I2C_ADDRESS_SONAR1 0x72
 #define I2C_ADDRESS_MPU9150 0x68
 #define SERVO_LANDING 1
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 
 
 /* Private Declaration -------------------------------------------------------*/

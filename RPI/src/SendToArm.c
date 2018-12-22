@@ -158,10 +158,10 @@ void sendToArm() {
 	SendToArmBuf[19] = checkSum_Byte;
 
 
-	printf("%f %d %d %d\r\n", bl.p, SendToArmBuf[0],SendToArmBuf[1],SendToArmBuf[2]);
+	//printf("%f %d %d %d\r\n", bl.p, SendToArmBuf[0],SendToArmBuf[1],SendToArmBuf[2]);
 	wlen = write(slave_id, SendToArmBuf, SEND_TO_ARM_BYTE);
 	if (wlen != SEND_TO_ARM_BYTE) {
-	  printf("Error from write: %d, %d\n", wlen, errno);
+	  //printf("Error from write: %d, %d\n", wlen, errno);
 	}
 	tcdrain(slave_id);    /* delay for output */
 

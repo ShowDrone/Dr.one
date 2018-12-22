@@ -72,11 +72,12 @@ int yaw_up_flag = 0;
 int yaw_down_flag = 0;
 int throttle_up_flag = 0;
 int throttle_down_flag = 0;
+uint64_t pthread_time = 0;
+uint64_t pthread_preTime = 0;
 
 
 pthread_t tId;
 void *eventloop(void *ptr);
-SDL_Window* win = SDL_CreateWindow("Hello World!", 100, 100, 640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	
 
 int main(int argc, char **argv) {
@@ -87,7 +88,6 @@ int main(int argc, char **argv) {
 	uint64_t tok, tokold, toktime;
 	uint64_t sonarTimer, displayTimer;
 	uint64_t now;
-	int16_t fd;
 	float ref = 0;
 	int cnt = 0, tokcnt = 1;
 	bool sonarFlag = true;
@@ -124,14 +124,19 @@ int main(int argc, char **argv) {
 
 
 	SDL_Init(SDL_INIT_EVERYTHING);
+	SDL_Joystick* gGameController = NULL;
+	SDL_Window* win = SDL_CreateWindow("Hello World!", 100, 100, 640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	SDL_SetWindowTitle(win, "KeyboardController");
+	SDL_NumJoysticks();
 	
 	int ret = pthread_create(&tId, NULL, eventloop, NULL);
 	if(ret) {
 		fprintf(stderr,"Error - pthread_create() return code: %d\n",ret);
 		exit(EXIT_FAILURE);
 	}
-
+	
+	pthread_time = millis();
+	
 	/*
 	float biasZ = 0;
 	for(int i=0;i<150;i++) {
@@ -423,6 +428,11 @@ void readPidGain() {
 	s1 = strtok(NULL, "\n");
 	bl.d = atof(s1);
 	close(fpidgain);
+	
+	printf("");
+	
+	
+	
 	printf("a %f %f %f \r\n", bl.p, bl.i, bl.d);
 }
 
@@ -438,8 +448,8 @@ void writePidGain() {
 
 void INThandler(int sig) {
 	pthread_join(tId, NULL);	
-	SDL_DestroyWindow(win);
-	SDL_Quit();
+	//SDL_DestroyWindow(win);
+	//SDL_Quit();
 
 	writePidGain();
 	mq_close();
@@ -519,37 +529,42 @@ void *eventloop(void *ptr) {
 				break;
 		}
 		
+		if( (millis()-pthread_time) > 50) {			
+			pthread_time = millis();
+		
 		if(roll_up_flag == 1)
-			roll.server = roll.server + 0.01;
+			roll.server = constrain((roll.server + 0.01) * 45, 0, 45) + 45;
 		else
-			roll.server = 0;
+			roll.server = 45;
 		if(roll_down_flag == 1)
-			roll.server = roll.server - 0.01;
+			roll.server = constrain((roll.server - 0.01) * 45, -45, 0) + 45;
 		else
-			roll.server = 0;
+			roll.server = 45;
 			
 		if(pitch_up_flag == 1)
-			pitch.server = pitch.server + 0.01;
+			pitch.server = constrain((pitch.server + 0.01) * 45, 0, 45) + 45;
 		else
-			pitch.server = 0;
+			pitch.server = 45;
 		if(pitch_down_flag == 1)
-			pitch.server = pitch.server - 0.01;
+			pitch.server = constrain((pitch.server - 0.01) * 45, -45, 0) + 45;
 		else
-			pitch.server = 0;
+			pitch.server = 45;
 		
 		if(yaw_up_flag == 1)
-			yaw.server = yaw.server + 0.01;
+			yaw.server = constrain((yaw.server + 0.01) * 45, 0, 45) + 45;
 		else
-			yaw.server = 0;
+			yaw.server = 45;
 		if(yaw_down_flag == 1)
-			yaw.server = yaw.server - 0.01;
+			yaw.server = constrain((yaw.server - 0.01) * 45, -45, 0) + 45;
 		else
-			yaw.server = 0;
-		
-		roll.server=roll.server*45 + 45;
-		pitch.server=pitch.server*45 + 45;
-		yaw.server=yaw.server*45 + 45;
-		bldcSpeed = bldcSpeed*255;
+			yaw.server = 45;
+	
+		if(throttle_up_flag == 1)
+			bldcSpeed = constrain((bldcSpeed + 0.01) * 255, 0, 255);
+		if(throttle_down_flag == 1)
+			bldcSpeed = constrain((bldcSpeed - 0.01) * 255, 0, 255);
+
+		}
 		//servo.y = servo.y*50;
 		//servo.x = servo.x*50;
 		
